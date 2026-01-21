@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:snapstar/app/core/themes/app_colors.dart';
 
 import '../modules/main_view/controllers/main_controller.dart';
 
@@ -33,7 +34,7 @@ class CustomBottomNav extends StatelessWidget {
               _navItem(context, Icons.home, 0),
               _navItem(context, Icons.search, 1),
               _navItem(context, Icons.add, 2, isCenter: true),
-              _navItem(context, Icons.movie, 3),
+              _navItem(context, Icons.movie_creation_rounded, 3),
               _navItem(context, Icons.person, 4),
             ],
           ),
@@ -78,7 +79,16 @@ class CustomBottomNav extends StatelessWidget {
                     : context.theme.primaryColor
               : isSelected
               ? context.theme.primaryColor
-              : Colors.grey,
+              : AppColors.gray600,
+
+          shadows: isSelected ? [
+            Shadow(
+              // color: context.theme.primaryColor.withValues(alpha: 0.2),
+              color: Colors.blue.shade200,
+              blurRadius: 6,
+              offset: const Offset(1, 2),
+            ),
+          ] : null,
         ),
       ),
     );

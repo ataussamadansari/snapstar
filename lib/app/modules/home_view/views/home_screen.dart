@@ -10,10 +10,15 @@ class HomeScreen extends GetView<HomeController> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-
           /// 🔥 APP BAR + STORIES (TOGETHER)
           SliverAppBar(
-            title: const Text("SnapStar", style: TextStyle(fontFamily: "Serif")),
+            title: const Row(
+              children: [
+                Icon(Icons.star),
+                SizedBox(width: 4),
+                Text("SnapStar", style: TextStyle(fontFamily: "Serif")),
+              ],
+            ),
             floating: true,
             snap: true,
             elevation: 0,
@@ -22,6 +27,11 @@ class HomeScreen extends GetView<HomeController> {
 
             // 👇 total height (appbar + stories)
             expandedHeight: 170,
+
+            actions: [
+              IconButton(onPressed: () {}, icon: Icon(Icons.favorite_border)),
+              IconButton(onPressed: () {}, icon: Icon(Icons.send)),
+            ],
 
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(110),
@@ -64,13 +74,10 @@ class HomeScreen extends GetView<HomeController> {
           SliverPadding(
             padding: const EdgeInsets.only(bottom: 80),
             sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                  final post = controller.posts[index];
-                  return _PostCard(post: post);
-                },
-                childCount: controller.posts.length,
-              ),
+              delegate: SliverChildBuilderDelegate((context, index) {
+                final post = controller.posts[index];
+                return _PostCard(post: post);
+              }, childCount: controller.posts.length),
             ),
           ),
         ],
@@ -78,7 +85,6 @@ class HomeScreen extends GetView<HomeController> {
     );
   }
 }
-
 
 class _PostCard extends StatelessWidget {
   final Map post;
@@ -92,9 +98,7 @@ class _PostCard extends StatelessWidget {
       children: [
         /// HEADER
         ListTile(
-          leading: const CircleAvatar(
-            backgroundColor: Colors.grey,
-          ),
+          leading: const CircleAvatar(backgroundColor: Colors.grey),
           title: Text(
             post['username'],
             style: const TextStyle(fontWeight: FontWeight.bold),
@@ -103,10 +107,7 @@ class _PostCard extends StatelessWidget {
         ),
 
         /// IMAGE PLACEHOLDER
-        Container(
-          height: 250,
-          color: Colors.red.shade300,
-        ),
+        Container(height: 250, color: Colors.red.shade300),
 
         /// ACTIONS
         Padding(
@@ -228,5 +229,3 @@ class HomeScreen extends GetView<HomeController> {
     );
   }
 } */
-
-

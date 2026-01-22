@@ -64,13 +64,13 @@ class RegisterScreen extends GetView<RegisterController> {
                   const SizedBox(height: 12),
 
                   TextFormField(
-                    controller: controller.emailOrMobileController,
+                    controller: controller.emailController,
                     decoration: const InputDecoration(
-                      labelText: 'Mobile number or Email',
+                      labelText: 'Email',
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Email or mobile is required';
+                        return 'Email is required';
                       }
                       return null;
                     },

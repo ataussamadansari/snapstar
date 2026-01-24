@@ -4,12 +4,11 @@ import 'package:get/get.dart';
 
 class HomeController extends GetxController {
 
-
   @override
   void onInit() async {
     super.onInit();
     String? token = await FirebaseAuth.instance.currentUser?.getIdToken();
-    debugPrint("Token: $token");
+    debugPrint("Token: \n$token\n");
   }
 
 

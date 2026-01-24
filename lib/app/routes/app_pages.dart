@@ -3,6 +3,8 @@ import 'package:snapstar/app/modules/abc_view/bindings/abc_binding.dart';
 import 'package:snapstar/app/modules/abc_view/views/abc_screen.dart';
 import 'package:snapstar/app/modules/main_view/bindings/main_binding.dart';
 import 'package:snapstar/app/modules/main_view/views/main_screen.dart';
+import 'package:snapstar/app/modules/setup_profile_view/bindings/setup_profile_binding.dart';
+import 'package:snapstar/app/modules/setup_profile_view/views/setup_profile_screen.dart';
 
 import '../modules/login_view/bindings/login_binding.dart';
 import '../modules/login_view/views/login_screen.dart';
@@ -26,6 +28,11 @@ class AppPages {
       name: Routes.register,
       page: () => const RegisterScreen(),
       binding: RegisterBinding(),
+    ),
+    GetPage(
+      name: Routes.setupProfile,
+      page: () => const SetupProfileScreen(),
+      binding: SetupProfileBinding(),
     ),
     GetPage(
       name: Routes.main,

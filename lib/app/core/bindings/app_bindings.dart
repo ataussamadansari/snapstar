@@ -3,12 +3,14 @@ import 'package:get/get.dart';
 import '../../data/providers/api_provider.dart';
 import '../../data/services/api_services.dart';
 import '../../data/services/storage_services.dart';
+import '../utils/global_user_controller.dart';
 
 class AppBindings extends Bindings {
   @override
   void dependencies() {
     Get.lazyPut<StorageServices>(() => StorageServices(), fenix: true);
 
+    Get.put(GlobalUserController(), permanent: true);
     // Initialize ApiProvider
     Get.put(ApiProvider(), permanent: true);
 

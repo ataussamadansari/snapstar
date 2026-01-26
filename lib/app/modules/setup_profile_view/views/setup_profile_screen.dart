@@ -22,19 +22,27 @@ class SetupProfileScreen extends GetView<SetupProfileController> {
               Center(
                 child: Stack(
                   children: [
-                    Obx(() => CircleAvatar(
-                      radius: 60,
-                      backgroundImage: controller.selectedImagePath.isEmpty
-                          ? const AssetImage('assets/default_user.png') as ImageProvider
-                          : FileImage(File(controller.selectedImagePath.value)),
+                    Obx(() => Container(
+                      padding: EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.grey
+                      ),
+                      child: CircleAvatar(
+                        radius: 60,
+                        backgroundColor: Colors.grey,
+                        backgroundImage: controller.selectedImagePath.isEmpty
+                            ? const AssetImage('assets/images/default_user.png') as ImageProvider
+                            : FileImage(File(controller.selectedImagePath.value)),
+                      ),
                     )),
                     Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: InkWell(
+                      bottom: 5,
+                      right: 5,
+                      child: GestureDetector(
                         onTap: controller.pickImage,
                         child: const CircleAvatar(
-                          radius: 18,
+                          radius: 15,
                           backgroundColor: Colors.blue,
                           child: Icon(Icons.edit, color: Colors.white, size: 18),
                         ),

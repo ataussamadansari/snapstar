@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -17,8 +16,7 @@ class MyApp extends StatelessWidget {
       themeMode: ThemeMode.system,
       darkTheme: AppTheme.dark,
       theme: AppTheme.light,
-      initialRoute: FirebaseAuth.instance.currentUser != null
-      ? Routes.main : Routes.login,
+      initialRoute: Routes.splash,
       getPages: AppPages.routes,
       initialBinding: AppBindings(),
     );

@@ -1,10 +1,10 @@
 import 'package:get/get.dart';
-import 'package:snapstar/app/modules/abc_view/bindings/abc_binding.dart';
-import 'package:snapstar/app/modules/abc_view/views/abc_screen.dart';
 import 'package:snapstar/app/modules/main_view/bindings/main_binding.dart';
 import 'package:snapstar/app/modules/main_view/views/main_screen.dart';
 import 'package:snapstar/app/modules/setup_profile_view/bindings/setup_profile_binding.dart';
 import 'package:snapstar/app/modules/setup_profile_view/views/setup_profile_screen.dart';
+import 'package:snapstar/app/modules/splash_view/bindings/splash_screen_binding.dart';
+import 'package:snapstar/app/modules/splash_view/views/splash_screen.dart';
 
 import '../modules/login_view/bindings/login_binding.dart';
 import '../modules/login_view/views/login_screen.dart';
@@ -15,9 +15,9 @@ import 'app_routes.dart';
 class AppPages {
   static final routes = [
     GetPage(
-      name: Routes.abc,
-      page: () => AbcScreen(),
-      binding: AbcBinding(),
+      name: Routes.splash,
+      page: () => SplashScreen(),
+      binding: SplashScreenBinding(),
     ),
     GetPage(
       name: Routes.login,

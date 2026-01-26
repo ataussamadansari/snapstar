@@ -8,6 +8,7 @@ class ApiConstants {
   static const String setupProfile = "/auth/setup-profile"; // POST
 
   // ----- USER -------
+  static const String me = "/user/me"; // GET
   static const String updateProfile = "/user/update-profile"; // POST
   static const String getProfile = "/user/get-profile"; // GET
 

@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/home_controller.dart';
@@ -32,7 +31,7 @@ class HomeScreen extends GetView<HomeController> {
             actions: [
               IconButton(onPressed: () {}, icon: Icon(Icons.favorite_border)),
               IconButton(onPressed: () {
-                FirebaseAuth.instance.signOut();
+                controller.logOut();
               }, icon: Icon(Icons.send)),
             ],
 

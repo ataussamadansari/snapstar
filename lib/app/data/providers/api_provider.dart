@@ -1,5 +1,6 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart' as getx;
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
@@ -37,7 +38,12 @@ class ApiProvider {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          final token = _storageService.getToken();
+          // final token = _storageService.getToken();
+
+          // 2. OPTIONAL: Agar aap chaho toh yahan direct Firebase se current token le sakte ho
+          // taaki token hamesha fresh rahe:
+          final firebaseToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+          final token = firebaseToken;
           if (token != null) {
             options.headers[ApiConstants.authorization] = 'Bearer $token';
           }

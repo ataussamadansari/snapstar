@@ -18,6 +18,7 @@ import '../routes/app_routes.dart';
 import '../modules/post_view/views/post_detail_screen.dart';
 import 'auto_play_video.dart';
 import 'comment_bottom_sheet.dart';
+import 'share_post_bottom_sheet.dart';
 
 enum _PostCardAction { edit, delete }
 
@@ -295,7 +296,15 @@ class _PostCardState extends State<PostCard> {
               color: _shareController.isSharing(_post.id)
                   ? Colors.lightBlueAccent
                   : Colors.white,
-              onTap: () => _shareController.sharePost(_post),
+              onTap: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  useSafeArea: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => SharePostBottomSheet(post: _post),
+                );
+              },
             ),
           ),
         ],

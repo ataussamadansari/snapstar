@@ -26,7 +26,7 @@ class ReelsNavigationHelper {
     if (scopedPosts != null) {
       reelsController.showScopedFromPosts(
         posts: scopedPosts,
-        initialPostId: post.id,
+      initialPostId: post.id,
         scopedUserId: scopedUserId,
       );
     } else {

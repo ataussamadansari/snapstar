@@ -15,6 +15,7 @@ import '../../../data/repositories/post_repository.dart';
 import '../../../global_widgets/auto_play_video.dart';
 import '../../../global_widgets/comment_bottom_sheet.dart';
 import '../../../global_widgets/loading_skeleton.dart';
+import '../../../global_widgets/share_post_bottom_sheet.dart';
 import '../../../global_widgets/subscribe_button.dart';
 import '../../main_view/controllers/main_controller.dart';
 import '../../../routes/app_routes.dart';
@@ -454,7 +455,15 @@ class _ReelViewState extends State<_ReelView>
             count: NumberFormatter.format(
               _shareController.shareCount(_post.id),
             ),
-            onTap: () => _shareController.sharePost(_post),
+            onTap: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                useSafeArea: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => SharePostBottomSheet(post: _post),
+              );
+            },
           ),
         ),
         const SizedBox(height: 18),

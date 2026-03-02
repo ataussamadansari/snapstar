@@ -48,6 +48,10 @@ class HomeScreen extends GetView<HomeController> {
                     scrolledUnderElevation: 0,
                     title: const Text("SnapStar"),
                     actions: [
+                      IconButton(
+                        onPressed: () => Get.toNamed(Routes.chatList),
+                        icon: const Icon(Icons.chat_bubble_outline_rounded),
+                      ),
                       Obx(
                         () => IconButton(
                           onPressed: () => Get.toNamed(Routes.notifications),

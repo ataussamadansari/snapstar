@@ -1,5 +1,6 @@
 ﻿import 'dart:async';
 
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
 import '../../../core/utils/auth_helper.dart';
@@ -53,6 +54,7 @@ class StoryViewerController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    // Don't await here, let it run async
     _initialize();
   }
 
@@ -72,8 +74,13 @@ class StoryViewerController extends GetxController {
       currentIndex.value = 0;
     }
 
-    await markCurrentViewed();
-    _startCurrentStory();
+    // Mark as viewed first
+    markCurrentViewed();
+
+    // Wait for next frame to ensure UI is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startCurrentStory();
+    });
   }
 
   void loadUserStories() {
@@ -116,11 +123,14 @@ class StoryViewerController extends GetxController {
   }
 
   void nextStory() {
+    _timer?.cancel();
+
     if (currentIndex.value < userStories.length - 1) {
       currentIndex.value++;
       _startCurrentStory();
       markCurrentViewed();
     } else {
+      // Last story finished, close viewer
       Get.back();
     }
   }

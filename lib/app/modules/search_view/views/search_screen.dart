@@ -253,12 +253,11 @@ class _PostListItem extends StatelessWidget {
 
     return InkWell(
       onTap: () {
-        final ctrl = Get.find<SearchsController>();
-        final feed = ctrl.suggestedPosts.toList();
-        final idx = feed.indexWhere((p) => p.id == post.id);
-        Get.to(
-          () => PostDetailScreen(posts: feed, initialIndex: idx < 0 ? 0 : idx),
-        );
+        if (post.mediaType == MediaType.video) {
+          ReelsNavigationHelper.openFromPost(post);
+        } else {
+          Get.to(() => PostDetailScreen(post: post));
+        }
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -333,12 +332,11 @@ class _SuggestedPostTile extends StatelessWidget {
 
     return InkWell(
       onTap: () {
-        final ctrl = Get.find<SearchsController>();
-        final feed = ctrl.suggestedPosts.toList();
-        final idx = feed.indexWhere((p) => p.id == post.id);
-        Get.to(
-          () => PostDetailScreen(posts: feed, initialIndex: idx < 0 ? 0 : idx),
-        );
+        if (isVideo) {
+          ReelsNavigationHelper.openFromPost(post);
+        } else {
+          Get.to(() => PostDetailScreen(post: post));
+        }
       },
       child: Stack(
         fit: StackFit.expand,

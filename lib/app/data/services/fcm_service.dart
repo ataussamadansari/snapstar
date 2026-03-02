@@ -8,6 +8,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../firebase_options.dart';
 import '../../routes/app_routes.dart';
 import '../controllers/notification_badge_controller.dart';
 import '../repositories/auth_repository.dart';
@@ -21,7 +22,9 @@ const String _kDefaultNotificationChannelDescription =
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
     if (Firebase.apps.isEmpty) {
-      await Firebase.initializeApp();
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
     }
   } catch (_) {}
 }
@@ -65,7 +68,9 @@ class FcmService extends GetxService {
 
     try {
       if (Firebase.apps.isEmpty) {
-        await Firebase.initializeApp();
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
       }
     } catch (error, stackTrace) {
       debugPrint('FcmService._initialize firebase init error: $error');
@@ -210,19 +215,57 @@ class FcmService extends GetxService {
     final now = DateTime.now().toIso8601String();
     final platform = _platformName;
 
+    // First, deactivate all old tokens for this user on this platform
+    try {
+      await _client
+          .from('user_push_tokens')
+          .update({'is_active': false, 'updated_at': now})
+          .eq('user_id', userId)
+          .eq('platform', platform)
+          .neq('token', token);
+    } catch (error) {
+      debugPrint(
+        'FcmService._persistToken deactivate old tokens error: $error',
+      );
+    }
+
     final attempts = <Future<void> Function()>[
       () => _client.rpc(
         'upsert_push_token',
         params: {'p_token': token, 'p_platform': platform},
       ),
-      () => _client.from('user_push_tokens').upsert({
-        'user_id': userId,
-        'token': token,
-        'platform': platform,
-        'is_active': true,
-        'created_at': now,
-        'updated_at': now,
-      }, onConflict: 'user_id,token'),
+      () async {
+        // Check if token already exists
+        final existing = await _client
+            .from('user_push_tokens')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('token', token)
+            .maybeSingle();
+
+        if (existing != null) {
+          // Update existing token
+          await _client
+              .from('user_push_tokens')
+              .update({
+                'is_active': true,
+                'platform': platform,
+                'updated_at': now,
+              })
+              .eq('user_id', userId)
+              .eq('token', token);
+        } else {
+          // Insert new token
+          await _client.from('user_push_tokens').insert({
+            'user_id': userId,
+            'token': token,
+            'platform': platform,
+            'is_active': true,
+            'created_at': now,
+            'updated_at': now,
+          });
+        }
+      },
       () => _client
           .from('users')
           .update({'fcm_token': token, 'updated_at': now})

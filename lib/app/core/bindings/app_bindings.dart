@@ -14,6 +14,7 @@ import 'package:snapstar_app/app/data/providers/post_provider.dart';
 import 'package:snapstar_app/app/data/providers/subscriber_provider.dart';
 import 'package:snapstar_app/app/data/providers/user_provider.dart';
 import 'package:snapstar_app/app/data/repositories/auth_repository.dart';
+import 'package:snapstar_app/app/data/repositories/chat_repository.dart';
 import 'package:snapstar_app/app/data/repositories/comment_repository.dart';
 import 'package:snapstar_app/app/data/repositories/like_repository.dart';
 import 'package:snapstar_app/app/data/repositories/notification_repository.dart';
@@ -27,6 +28,7 @@ import 'package:snapstar_app/app/data/services/fcm_service.dart';
 import 'package:snapstar_app/app/data/services/like_service.dart';
 import 'package:snapstar_app/app/data/services/notification_service.dart';
 import 'package:snapstar_app/app/data/services/post_service.dart';
+import 'package:snapstar_app/app/data/services/storage_service.dart';
 import 'package:snapstar_app/app/data/services/story_service.dart';
 import 'package:snapstar_app/app/data/services/subscriber_service.dart';
 import 'package:snapstar_app/app/data/services/user_service.dart';
@@ -110,12 +112,17 @@ class AppBindings extends Bindings {
       NotificationRepository(Get.find<NotificationService>()),
       permanent: true,
     );
+    Get.put<ChatRepository>(
+      ChatRepository(client, Get.find<AuthRepository>()),
+      permanent: true,
+    );
 
     Get.put<StoryRepository>(StoryRepository(), permanent: true);
     Get.put<StoryService>(
       StoryService(Get.find<StoryRepository>()),
       permanent: true,
     );
+    Get.put<StorageService>(StorageService(), permanent: true);
 
     Get.put<AuthController>(
       AuthController(Get.find<AuthRepository>()),

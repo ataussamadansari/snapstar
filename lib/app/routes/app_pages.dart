@@ -1,5 +1,9 @@
 import 'package:get/get.dart';
 import 'package:snapstar_app/app/middlewares/auth_middleware.dart';
+import 'package:snapstar_app/app/modules/chat_view/bindings/chat_detail_binding.dart';
+import 'package:snapstar_app/app/modules/chat_view/bindings/chat_list_binding.dart';
+import 'package:snapstar_app/app/modules/chat_view/views/chat_detail_screen.dart';
+import 'package:snapstar_app/app/modules/chat_view/views/chat_list_screen.dart';
 import 'package:snapstar_app/app/modules/edit_profile_view/bindings/edit_profile_binding.dart';
 import 'package:snapstar_app/app/modules/edit_profile_view/views/edit_profile_screen.dart';
 import 'package:snapstar_app/app/modules/login_view/bindings/login_binding.dart';
@@ -50,7 +54,7 @@ class AppPages {
       name: Routes.main,
       page: () => MainScreen(),
       binding: MainBinding(),
-      middlewares: [AuthMiddleware()]
+      middlewares: [AuthMiddleware()],
     ),
     GetPage(
       name: Routes.userProfile,
@@ -62,7 +66,7 @@ class AppPages {
       name: Routes.editProfile,
       page: () => EditProfileScreen(),
       binding: EditProfileBinding(),
-      middlewares: [AuthMiddleware()]
+      middlewares: [AuthMiddleware()],
     ),
     GetPage(
       name: Routes.subscriberList,
@@ -82,6 +86,17 @@ class AppPages {
       binding: NotificationBinding(),
       middlewares: [AuthMiddleware()],
     ),
-
+    GetPage(
+      name: Routes.chatList,
+      page: () => const ChatListScreen(),
+      binding: ChatListBinding(),
+      middlewares: [AuthMiddleware()],
+    ),
+    GetPage(
+      name: Routes.chatDetail,
+      page: () => const ChatDetailScreen(),
+      binding: ChatDetailBinding(),
+      middlewares: [AuthMiddleware()],
+    ),
   ];
 }

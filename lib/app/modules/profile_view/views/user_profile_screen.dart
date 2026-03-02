@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../data/models/post_model.dart';
+import '../../../data/repositories/chat_repository.dart';
 import '../../../global_widgets/loading_skeleton.dart';
 import '../../../global_widgets/subscribe_button.dart';
 import '../../../routes/app_routes.dart';
 import '../../subscribe_list_view/controllers/subscriber_list_controller.dart';
 import '../controllers/user_profile_controller.dart';
+import '../../post_view/views/post_detail_screen.dart';
 import 'package:snapstar_app/app/core/utils/reels_navigation_helper.dart';
 import 'package:snapstar_app/app/modules/profile_view/views/widgets/post_grid_item.dart';
 
@@ -115,26 +117,62 @@ class UserProfileScreen extends GetView<UserProfileController> {
                       ),
                       if (user.bio != null) Text(user.bio!),
                       const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: controller.isMyProfile
-                            ? OutlinedButton(
+                      controller.isMyProfile
+                          ? SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton(
                                 onPressed: () {
                                   Get.toNamed(Routes.editProfile);
                                 },
                                 child: const Text('Edit Profile'),
-                              )
-                            : SubscriberButton(
-                                userId: user.id,
-                                fullWidth: true,
-                                height: 40,
-                                borderRadius: 12,
-                                fontSize: 14,
-                                horizontalPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                ),
                               ),
-                      ),
+                            )
+                          : Row(
+                              children: [
+                                Expanded(
+                                  child: SubscriberButton(
+                                    userId: user.id,
+                                    fullWidth: true,
+                                    height: 40,
+                                    borderRadius: 12,
+                                    fontSize: 14,
+                                    horizontalPadding:
+                                        const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                        ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                SizedBox(
+                                  height: 40,
+                                  child: OutlinedButton(
+                                    onPressed: () async {
+                                      // Navigate to chat with this user
+                                      try {
+                                        final chatRepo =
+                                            Get.find<ChatRepository>();
+                                        final conversationId = await chatRepo
+                                            .getOrCreateConversation(user.id);
+                                        Get.toNamed(
+                                          Routes.chatDetail,
+                                          arguments: conversationId,
+                                        );
+                                      } catch (e) {
+                                        Get.snackbar(
+                                          'Error',
+                                          'Failed to open chat',
+                                          snackPosition: SnackPosition.BOTTOM,
+                                        );
+                                      }
+                                    },
+                                    child: const Icon(
+                                      Icons.chat_bubble_outline,
+                                      size: 20,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                     ],
                   ),
                 ),
@@ -158,7 +196,7 @@ class UserProfileScreen extends GetView<UserProfileController> {
             body: TabBarView(
               controller: controller.tabController,
               children: [
-                 _buildPostGrid(controller.allPosts),
+                _buildPostGrid(controller.allPosts),
                 _buildPostGrid(controller.imagePosts),
                 _buildPostGrid(controller.videoPosts),
               ],
@@ -181,7 +219,6 @@ class UserProfileScreen extends GetView<UserProfileController> {
     );
   }
 
-  
   // Post Grid
   Widget _buildPostGrid(List<PostModel> posts) {
     return Obx(() {
@@ -206,11 +243,17 @@ class UserProfileScreen extends GetView<UserProfileController> {
 
           return PostGridItem(
             post: post,
-            onTap: () => ReelsNavigationHelper.openFromPost(
-              post,
-              scopedPosts: controller.videoPosts.toList(),
-              scopedUserId: post.userId,
-            ),
+            onTap: () {
+              if (post.mediaType == MediaType.video) {
+                ReelsNavigationHelper.openFromPost(
+                  post,
+                  scopedPosts: controller.videoPosts.toList(),
+                  scopedUserId: post.userId,
+                );
+              } else {
+                Get.to(() => PostDetailScreen(post: post));
+              }
+            },
           );
         },
       );

@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/add_post_controller.dart';
@@ -8,9 +7,7 @@ class AddPostScreen extends GetView<AddPostController> {
 
   @override
   Widget build(BuildContext context) {
-
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -23,28 +20,30 @@ class AddPostScreen extends GetView<AddPostController> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
-          Obx(() => controller.isLoading.value
-              ? const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Center(
-              child: SizedBox(
-                height: 18,
-                width: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-          )
-              : TextButton(
-            onPressed: controller.createPost,
-            child: Text(
-              "Share",
-              style: TextStyle(
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-          )),
+          Obx(
+            () => controller.isLoading.value
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Center(
+                      child: SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  )
+                : TextButton(
+                    onPressed: controller.createPost,
+                    child: Text(
+                      "Share",
+                      style: TextStyle(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -52,7 +51,6 @@ class AddPostScreen extends GetView<AddPostController> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             /// Caption
             TextField(
               controller: controller.captionCtrl,
@@ -61,9 +59,7 @@ class AddPostScreen extends GetView<AddPostController> {
               decoration: InputDecoration(
                 hintText: "Write a caption...",
                 border: InputBorder.none,
-                hintStyle: TextStyle(
-                  color: theme.hintColor,
-                ),
+                hintStyle: TextStyle(color: theme.hintColor),
               ),
             ),
 
@@ -71,9 +67,11 @@ class AddPostScreen extends GetView<AddPostController> {
             const SizedBox(height: 12),
 
             /// Media Preview
-            Obx(() => controller.selectedFiles.isEmpty
-                ? _buildEmptyState(context)
-                : _buildMediaPreview(context, controller)),
+            Obx(
+              () => controller.selectedFiles.isEmpty
+                  ? _buildEmptyState(context)
+                  : _buildMediaPreview(context, controller),
+            ),
 
             const SizedBox(height: 30),
 
@@ -125,10 +123,7 @@ class AddPostScreen extends GetView<AddPostController> {
             color: theme.hintColor,
           ),
           const SizedBox(height: 8),
-          Text(
-            "No media selected",
-            style: TextStyle(color: theme.hintColor),
-          ),
+          Text("No media selected", style: TextStyle(color: theme.hintColor)),
         ],
       ),
     );
@@ -136,8 +131,9 @@ class AddPostScreen extends GetView<AddPostController> {
 
   /// Media Preview
   Widget _buildMediaPreview(
-      BuildContext context, AddPostController controller) {
-
+    BuildContext context,
+    AddPostController controller,
+  ) {
     final theme = Theme.of(context);
 
     if (controller.isVideo.value) {
@@ -201,7 +197,7 @@ class AddPostScreen extends GetView<AddPostController> {
             ),
             _buildDeleteButton(
               context,
-                  () => controller.selectedFiles.removeAt(index),
+              () => controller.selectedFiles.removeAt(index),
             ),
           ],
         );
@@ -209,9 +205,7 @@ class AddPostScreen extends GetView<AddPostController> {
     );
   }
 
-  Widget _buildDeleteButton(
-      BuildContext context, VoidCallback onTap) {
-
+  Widget _buildDeleteButton(BuildContext context, VoidCallback onTap) {
     final theme = Theme.of(context);
 
     return Positioned(
@@ -244,13 +238,11 @@ class AddPostScreen extends GetView<AddPostController> {
         padding: const EdgeInsets.symmetric(vertical: 20),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius:
-          const BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-
             Container(
               width: 40,
               height: 4,
@@ -263,8 +255,7 @@ class AddPostScreen extends GetView<AddPostController> {
 
             const Text(
               "Select Media",
-              style:
-              TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
 
             const SizedBox(height: 20),

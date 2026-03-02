@@ -100,6 +100,7 @@ class StoryViewerController extends GetxController {
     progress.value = 0;
     _timer?.cancel();
 
+    // 5 seconds for images (5000ms / 50ms interval = 100 ticks)
     _timer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
       if (isPaused.value) {
         return;
@@ -107,7 +108,8 @@ class StoryViewerController extends GetxController {
 
       progress.value += 0.01;
 
-      if (progress.value >= 1) {
+      if (progress.value >= 1.0) {
+        progress.value = 1.0;
         nextStory();
       }
     });
@@ -144,14 +146,30 @@ class StoryViewerController extends GetxController {
     isPaused.value = false;
 
     if (!isCurrentVideo) {
-      startProgress();
+      // Restart timer from current progress
+      _timer?.cancel();
+      _timer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
+        if (isPaused.value) {
+          return;
+        }
+
+        progress.value += 0.01;
+
+        if (progress.value >= 1.0) {
+          progress.value = 1.0;
+          nextStory();
+        }
+      });
     }
   }
 
   void updateVideoProgress(double value) {
-    if (!isCurrentVideo || isPaused.value) {
+    if (!isCurrentVideo) {
       return;
     }
+
+    // Cancel timer for videos - video player controls progress
+    _timer?.cancel();
 
     final normalized = value.clamp(0.0, 1.0);
     progress.value = normalized;
@@ -182,7 +200,8 @@ class StoryViewerController extends GetxController {
   @override
   void onClose() {
     _timer?.cancel();
+    // Refresh stories to update "already seen" state in home screen
+    storyController.stories.refresh();
     super.onClose();
   }
 }
-

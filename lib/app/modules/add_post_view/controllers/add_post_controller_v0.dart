@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:snapstar_app/app/modules/main_view/controllers/main_controller.dart';
 import 'package:video_compress/video_compress.dart';
 
 import '../../../data/models/post_model.dart';
@@ -19,7 +18,6 @@ class AddPostController extends GetxController {
   RxBool isVideo = false.obs;
   RxBool isLoading = false.obs;
 
-
   final captionCtrl = TextEditingController();
   final ImagePicker _picker = ImagePicker();
 
@@ -31,8 +29,7 @@ class AddPostController extends GetxController {
     );
 
     if (images.isNotEmpty) {
-      selectedFiles.value =
-          images.take(5).map((e) => File(e.path)).toList();
+      selectedFiles.value = images.take(5).map((e) => File(e.path)).toList();
       isVideo.value = false;
       videoThumbnail.value = null;
     }
@@ -40,16 +37,14 @@ class AddPostController extends GetxController {
 
   /// 🔹 Pick Video + Thumbnail
   Future<void> pickVideo() async {
-    final XFile? video =
-    await _picker.pickVideo(source: ImageSource.gallery);
+    final XFile? video = await _picker.pickVideo(source: ImageSource.gallery);
 
     if (video != null) {
       final file = File(video.path);
       selectedFiles.value = [file];
       isVideo.value = true;
 
-      final thumb =
-      await VideoCompress.getFileThumbnail(video.path);
+      final thumb = await VideoCompress.getFileThumbnail(video.path);
       videoThumbnail.value = thumb;
     }
   }
@@ -92,8 +87,7 @@ class AddPostController extends GetxController {
       final post = PostModel(
         id: '',
         userId: userId,
-        mediaType:
-        isVideo.value ? MediaType.video : MediaType.image,
+        mediaType: isVideo.value ? MediaType.video : MediaType.image,
         caption: captionCtrl.text.trim(),
         mediaUrls: mediaUrls,
         thumbnailUrls: thumbUrls,
@@ -109,14 +103,12 @@ class AddPostController extends GetxController {
       await repo.createPost(post);
 
       _resetFields();
-
     } catch (e) {
       debugPrint("Create Post Error: $e");
     } finally {
       isLoading.value = false;
     }
   }
-
 
   // 🟢 Helper function fields reset karne ke liye
   void _resetFields() {

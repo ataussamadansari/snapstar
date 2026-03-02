@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
-import '../../../core/utils/reels_navigation_helper.dart';
 import '../../../data/models/post_model.dart';
 import '../../../global_widgets/loading_skeleton.dart';
 import '../../../global_widgets/subscribe_button.dart';
 import '../../../routes/app_routes.dart';
 import '../../subscribe_list_view/controllers/subscriber_list_controller.dart';
 import '../controllers/user_profile_controller.dart';
-import 'widgets/post_grid_item.dart';
+import 'package:snapstar_app/app/core/utils/reels_navigation_helper.dart';
+import 'package:snapstar_app/app/modules/profile_view/views/widgets/post_grid_item.dart';
 
 class UserProfileScreen extends GetView<UserProfileController> {
   const UserProfileScreen({super.key});
@@ -159,7 +158,7 @@ class UserProfileScreen extends GetView<UserProfileController> {
             body: TabBarView(
               controller: controller.tabController,
               children: [
-                _buildPostGrid(controller.allPosts),
+                 _buildPostGrid(controller.allPosts),
                 _buildPostGrid(controller.imagePosts),
                 _buildPostGrid(controller.videoPosts),
               ],
@@ -182,6 +181,8 @@ class UserProfileScreen extends GetView<UserProfileController> {
     );
   }
 
+  
+  // Post Grid
   Widget _buildPostGrid(List<PostModel> posts) {
     return Obx(() {
       if (controller.isPostLoading.value) {
@@ -189,7 +190,7 @@ class UserProfileScreen extends GetView<UserProfileController> {
       }
 
       if (posts.isEmpty) {
-        return const Center(child: Text('No Posts Yet'));
+        return const Center(child: Text("No Posts Yet"));
       }
 
       return GridView.builder(
@@ -208,7 +209,7 @@ class UserProfileScreen extends GetView<UserProfileController> {
             onTap: () => ReelsNavigationHelper.openFromPost(
               post,
               scopedPosts: controller.videoPosts.toList(),
-              scopedUserId: controller.userId,
+              scopedUserId: post.userId,
             ),
           );
         },

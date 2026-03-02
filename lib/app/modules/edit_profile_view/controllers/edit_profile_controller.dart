@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:snapstar_app/app/core/utils/avatar_cropper.dart';
 import 'package:snapstar_app/app/core/utils/helpers.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -10,12 +11,14 @@ import '../../../data/models/user_model.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/user_repository.dart';
 import '../../profile_view/controllers/profile_controller.dart';
+import '../../profile_view/controllers/user_profile_controller.dart';
 
 class EditProfileController extends GetxController {
   EditProfileController(this._userRepo, this._authRepo);
 
   final UserRepository _userRepo;
   final AuthRepository _authRepo;
+  final ImagePicker _picker = ImagePicker();
 
   final formKey = GlobalKey<FormState>();
 
@@ -54,11 +57,17 @@ class EditProfileController extends GetxController {
   }
 
   Future<void> pickImage() async {
-    final picker = ImagePicker();
-    final pickedFile =
-        await picker.pickImage(source: ImageSource.gallery, imageQuality: 60);
-    if (pickedFile != null) {
-      selectedImage.value = File(pickedFile.path);
+    final pickedFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 60,
+    );
+    if (pickedFile == null) {
+      return;
+    }
+
+    final cropped = await AvatarCropper.cropSquare(pickedFile.path);
+    if (cropped != null) {
+      selectedImage.value = cropped;
     }
   }
 
@@ -93,8 +102,16 @@ class EditProfileController extends GetxController {
 
       await _userRepo.updateProfile(userId, updateData);
 
+      // Refresh any active profile-related controllers so the UI shows the
+      // latest data. we're cautious and only invoke fetch methods if the
+      // controllers are registered (they're lazy-loaded by GetX).
       if (Get.isRegistered<ProfileController>()) {
         Get.find<ProfileController>().fetchMyProfile();
+      }
+      if (Get.isRegistered<UserProfileController>()) {
+        // If the user was editing from their own public profile screen, that
+        // controller needs to update as well.
+        Get.find<UserProfileController>().fetchProfile();
       }
 
       Get.back(result: true);

@@ -78,7 +78,10 @@ class ProfileScreen extends GetView<ProfileController> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
-                                _buildStatColumn("Posts", controller.postsCount.value),
+                                _buildStatColumn(
+                                  "Posts",
+                                  controller.postsCount.value,
+                                ),
                                 GestureDetector(
                                   onTap: () {
                                     Get.toNamed(

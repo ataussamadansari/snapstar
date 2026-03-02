@@ -13,27 +13,38 @@ class EditProfileScreen extends GetView<EditProfileController> {
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => Get.back()),
-        title: const Text("Edit Profile",
-            style: TextStyle(fontWeight: FontWeight.bold)),
+          icon: const Icon(Icons.close),
+          onPressed: () => Get.back(),
+        ),
+        title: const Text(
+          "Edit Profile",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         actions: [
-          Obx(() => controller.isLoading.value
-              ? const Center(
-              child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2))))
-              : TextButton(
-            onPressed: controller.updateProfile,
-            child: const Text("Done",
-                style: TextStyle(
-                    color: Colors.blue,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16)),
-          )),
+          Obx(
+            () => controller.isLoading.value
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  )
+                : TextButton(
+                    onPressed: controller.updateProfile,
+                    child: const Text(
+                      "Done",
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+          ),
         ],
       ),
       body: Obx(() {
@@ -51,7 +62,11 @@ class EditProfileScreen extends GetView<EditProfileController> {
                 const SizedBox(height: 10),
 
                 _buildSectionHeader("Public Information"),
-                _buildInputField("Name", controller.nameCtrl, Icons.person_outline),
+                _buildInputField(
+                  "Name",
+                  controller.nameCtrl,
+                  Icons.person_outline,
+                ),
                 _buildBioField(),
 
                 const SizedBox(height: 10),
@@ -67,7 +82,9 @@ class EditProfileScreen extends GetView<EditProfileController> {
 
                 _buildInputField(
                   "Email",
-                  TextEditingController(text: controller.userProfile.value!.email),
+                  TextEditingController(
+                    text: controller.userProfile.value!.email,
+                  ),
                   Icons.email_outlined,
                   enabled: false,
                 ),
@@ -86,19 +103,25 @@ class EditProfileScreen extends GetView<EditProfileController> {
       children: [
         Stack(
           children: [
-            Obx(() => CircleAvatar(
-              radius: 50,
-              backgroundColor: Colors.grey[200],
-              backgroundImage: controller.selectedImage.value != null
-                  ? FileImage(controller.selectedImage.value!)
-                  : (controller.userProfile.value?.avatarUrl != null
-                  ? NetworkImage(controller.userProfile.value!.avatarUrl!)
-                  : null) as ImageProvider?,
-              child: (controller.selectedImage.value == null &&
-                  controller.userProfile.value?.avatarUrl == null)
-                  ? const Icon(Icons.person, size: 50, color: Colors.grey)
-                  : null,
-            )),
+            Obx(
+              () => CircleAvatar(
+                radius: 50,
+                backgroundColor: Colors.grey[200],
+                backgroundImage: controller.selectedImage.value != null
+                    ? FileImage(controller.selectedImage.value!)
+                    : (controller.userProfile.value?.avatarUrl != null
+                              ? NetworkImage(
+                                  controller.userProfile.value!.avatarUrl!,
+                                )
+                              : null)
+                          as ImageProvider?,
+                child:
+                    (controller.selectedImage.value == null &&
+                        controller.userProfile.value?.avatarUrl == null)
+                    ? const Icon(Icons.person, size: 50, color: Colors.grey)
+                    : null,
+              ),
+            ),
             Positioned(
               bottom: 0,
               right: 0,
@@ -110,14 +133,16 @@ class EditProfileScreen extends GetView<EditProfileController> {
                   child: Icon(Icons.camera_alt, size: 14, color: Colors.white),
                 ),
               ),
-            )
+            ),
           ],
         ),
         const SizedBox(height: 10),
         GestureDetector(
           onTap: controller.pickImage,
-          child: const Text("Edit profile picture",
-              style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+          child: const Text(
+            "Edit and adjust profile picture",
+            style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+          ),
         ),
       ],
     );
@@ -127,22 +152,26 @@ class EditProfileScreen extends GetView<EditProfileController> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Align(
-          alignment: Alignment.centerLeft,
-          child: Text(title,
-              style: const TextStyle(
-                  color: Colors.grey,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13))),
+        alignment: Alignment.centerLeft,
+        child: Text(
+          title,
+          style: const TextStyle(
+            color: Colors.grey,
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+          ),
+        ),
+      ),
     );
   }
 
   Widget _buildInputField(
-      String label,
-      TextEditingController ctrl,
-      IconData icon, {
-        bool enabled = true,
-        bool isPhoneNumber = false,
-      }) {
+    String label,
+    TextEditingController ctrl,
+    IconData icon, {
+    bool enabled = true,
+    bool isPhoneNumber = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: TextFormField(
@@ -152,9 +181,12 @@ class EditProfileScreen extends GetView<EditProfileController> {
         keyboardType: isPhoneNumber ? TextInputType.number : TextInputType.text,
         inputFormatters: isPhoneNumber
             ? [
-          FilteringTextInputFormatter.digitsOnly, // Sirf digits allow karega
-          LengthLimitingTextInputFormatter(10), // 10 characters se zyada nahi
-        ]
+                FilteringTextInputFormatter
+                    .digitsOnly, // Sirf digits allow karega
+                LengthLimitingTextInputFormatter(
+                  10,
+                ), // 10 characters se zyada nahi
+              ]
             : null,
         decoration: InputDecoration(
           labelText: label,
@@ -194,12 +226,18 @@ class EditProfileScreen extends GetView<EditProfileController> {
               alignLabelWithHint: true,
               prefixIcon: const Icon(Icons.info_outline),
               counterText: "",
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           ),
           const SizedBox(height: 4),
-          Obx(() => Text("${controller.bioLength.value} / 150",
-              style: const TextStyle(fontSize: 12, color: Colors.grey))),
+          Obx(
+            () => Text(
+              "${controller.bioLength.value} / 150",
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ),
         ],
       ),
     );

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../../core/utils/reels_navigation_helper.dart';
 import '../../../data/models/post_model.dart';
+import '../../post_view/views/post_detail_screen.dart';
 import '../../../data/models/user_model.dart';
 import '../../../global_widgets/loading_skeleton.dart';
 import '../../../global_widgets/subscribe_button.dart';
@@ -103,7 +104,8 @@ class SearchScreen extends GetView<SearchsController> {
       return const SearchSkeleton();
     }
 
-    if (controller.suggestedUsers.isEmpty && controller.suggestedPosts.isEmpty) {
+    if (controller.suggestedUsers.isEmpty &&
+        controller.suggestedPosts.isEmpty) {
       return const _StateMessage(
         icon: Icons.group_outlined,
         title: 'No suggestions available',
@@ -185,10 +187,7 @@ class _UserListItem extends StatelessWidget {
     final displayName = user.name.trim().isEmpty ? user.username : user.name;
 
     return InkWell(
-      onTap: () => Get.toNamed(
-        Routes.userProfile,
-        arguments: user.id,
-      ),
+      onTap: () => Get.toNamed(Routes.userProfile, arguments: user.id),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
@@ -253,7 +252,14 @@ class _PostListItem extends StatelessWidget {
         : caption;
 
     return InkWell(
-      onTap: () => ReelsNavigationHelper.openFromPost(post),
+      onTap: () {
+        final ctrl = Get.find<SearchsController>();
+        final feed = ctrl.suggestedPosts.toList();
+        final idx = feed.indexWhere((p) => p.id == post.id);
+        Get.to(
+          () => PostDetailScreen(posts: feed, initialIndex: idx < 0 ? 0 : idx),
+        );
+      },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
@@ -271,10 +277,7 @@ class _PostListItem extends StatelessWidget {
                             : Icons.image_outlined,
                         color: Colors.grey.shade600,
                       )
-                    : Image.network(
-                        previewUrl,
-                        fit: BoxFit.cover,
-                      ),
+                    : Image.network(previewUrl, fit: BoxFit.cover),
               ),
             ),
             const SizedBox(width: 12),
@@ -322,12 +325,21 @@ class _SuggestedPostTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isVideo = post.mediaType == MediaType.video;
-    final thumbnail = post.thumbnailUrls.isNotEmpty ? post.thumbnailUrls.first : null;
+    final thumbnail = post.thumbnailUrls.isNotEmpty
+        ? post.thumbnailUrls.first
+        : null;
     final media = post.mediaUrls.isNotEmpty ? post.mediaUrls.first : null;
     final previewUrl = isVideo ? (thumbnail ?? media) : (media ?? thumbnail);
 
     return InkWell(
-      onTap: () => ReelsNavigationHelper.openFromPost(post),
+      onTap: () {
+        final ctrl = Get.find<SearchsController>();
+        final feed = ctrl.suggestedPosts.toList();
+        final idx = feed.indexWhere((p) => p.id == post.id);
+        Get.to(
+          () => PostDetailScreen(posts: feed, initialIndex: idx < 0 ? 0 : idx),
+        );
+      },
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -410,4 +422,3 @@ class _StateMessage extends StatelessWidget {
     );
   }
 }
-

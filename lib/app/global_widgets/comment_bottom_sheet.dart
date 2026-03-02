@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:snapstar_app/app/core/utils/time_ago.dart';
 import 'package:snapstar_app/app/data/controllers/comment_controller.dart';
+import 'package:snapstar_app/app/data/services/auth_service.dart';
 import 'package:snapstar_app/app/global_widgets/loading_skeleton.dart';
 
 class CommentBottomSheet extends StatefulWidget {
@@ -67,8 +68,6 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
-              Divider(color: theme.dividerColor),
 
               /// COMMENT LIST
               Expanded(
@@ -204,26 +203,27 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
             ),
           ),
 
-          /// 3 DOT MENU
-          PopupMenuButton<String>(
-            iconSize: 18,
-            onSelected: (value) async {
-              if (value == "edit") {
-                setState(() {
-                  editingCommentId = comment.id;
-                  replyParentId = null;
-                });
+          /// 3 DOT MENU - Only show if current user is comment owner
+          if (Get.find<AuthService>().currentUser?.id == comment.userId)
+            PopupMenuButton<String>(
+              iconSize: 18,
+              onSelected: (value) async {
+                if (value == "edit") {
+                  setState(() {
+                    editingCommentId = comment.id;
+                    replyParentId = null;
+                  });
 
-                _textController.text = comment.commentText;
-              } else if (value == "delete") {
-                await controller.deleteComment(comment.id, widget.postId);
-              }
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: "edit", child: Text("Edit")),
-              PopupMenuItem(value: "delete", child: Text("Delete")),
-            ],
-          ),
+                  _textController.text = comment.commentText;
+                } else if (value == "delete") {
+                  await controller.deleteComment(comment.id, widget.postId);
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(value: "edit", child: Text("Edit")),
+                PopupMenuItem(value: "delete", child: Text("Delete")),
+              ],
+            ),
         ],
       ),
     );

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:snapstar_app/app/core/utils/helpers.dart';
+import 'package:snapstar_app/app/core/utils/avatar_cropper.dart';
 import 'package:snapstar_app/app/routes/app_routes.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -33,8 +34,13 @@ class SetupProfileController extends GetxController {
       imageQuality: 70,
     );
 
-    if (pickedFile != null) {
-      profileImage.value = File(pickedFile.path);
+    if (pickedFile == null) {
+      return;
+    }
+
+    final cropped = await AvatarCropper.cropSquare(pickedFile.path);
+    if (cropped != null) {
+      profileImage.value = cropped;
     }
   }
 

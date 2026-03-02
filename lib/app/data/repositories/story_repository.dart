@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:snapstar_app/app/data/models/story_view_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/story_model.dart';
 
@@ -94,7 +93,6 @@ class StoryRepository {
     return response != null;
   }
 
-
   // ===============================
   // 🔹 GET VIEW COUNT
   // ===============================
@@ -116,7 +114,4 @@ class StoryRepository {
         .delete()
         .lt('expires_at', DateTime.now().toIso8601String());
   }
-
-
 }
-

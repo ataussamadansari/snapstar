@@ -4,7 +4,6 @@ import 'package:snapstar_app/app/routes/app_routes.dart';
 
 import 'package:snapstar_app/app/core/utils/auth_helper.dart';
 import 'package:snapstar_app/app/data/controllers/notification_badge_controller.dart';
-import 'package:snapstar_app/app/data/models/story_model.dart';
 import 'package:snapstar_app/app/global_widgets/loading_skeleton.dart';
 import 'package:snapstar_app/app/global_widgets/post_card.dart';
 import 'package:snapstar_app/app/global_widgets/story_card.dart';
@@ -56,7 +55,10 @@ class HomeScreen extends GetView<HomeController> {
                             clipBehavior: Clip.none,
                             children: [
                               const Icon(Icons.notifications_none_rounded),
-                              if (notificationBadgeController.unreadCount.value > 0)
+                              if (notificationBadgeController
+                                      .unreadCount
+                                      .value >
+                                  0)
                                 Positioned(
                                   top: -2,
                                   right: -6,
@@ -76,9 +78,15 @@ class HomeScreen extends GetView<HomeController> {
                                       minHeight: 14,
                                     ),
                                     child: Text(
-                                      notificationBadgeController.unreadCount.value > 99
+                                      notificationBadgeController
+                                                  .unreadCount
+                                                  .value >
+                                              99
                                           ? '99+'
-                                          : notificationBadgeController.unreadCount.value.toString(),
+                                          : notificationBadgeController
+                                                .unreadCount
+                                                .value
+                                                .toString(),
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(
                                         color: Colors.white,
@@ -122,6 +130,7 @@ class HomeScreen extends GetView<HomeController> {
                           if (actualPostIndex < postCount) {
                             return PostCard(
                               post: controller.posts[actualPostIndex],
+                              feedPosts: controller.posts,
                             );
                           }
 
@@ -208,16 +217,7 @@ class HomeScreen extends GetView<HomeController> {
         final currentUserId = AuthHelper.currentUserId;
 
         final myStory = storyController.getMyLatestStory(currentUserId);
-        final String? myStoryPreviewUrl;
-        if (myStory == null) {
-          myStoryPreviewUrl = null;
-        } else if (myStory.mediaTypes.isNotEmpty &&
-            myStory.mediaTypes.first == StoryMediaType.image &&
-            myStory.mediaUrls.isNotEmpty) {
-          myStoryPreviewUrl = myStory.mediaUrls.first;
-        } else {
-          myStoryPreviewUrl = myStory.user?.avatarUrl;
-        }
+        final String? myStoryPreviewUrl = myStory?.user?.avatarUrl;
 
         final otherStories = storyController.getOtherUsersStories(
           currentUserId,
@@ -292,6 +292,4 @@ class HomeScreen extends GetView<HomeController> {
       ],
     );
   }
-
 }
-

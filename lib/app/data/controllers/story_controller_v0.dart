@@ -5,7 +5,6 @@ import '../models/story_model.dart';
 import '../services/story_service.dart';
 
 class StoryController extends GetxController {
-
   final StoryService _service = Get.find<StoryService>();
 
   RxList<StoryModel> stories = <StoryModel>[].obs;
@@ -23,13 +22,12 @@ class StoryController extends GetxController {
   }
 
   bool? getIsViewed() {
-
+    // placeholder implementation, return false by default
+    return false;
   }
 
   StoryModel? getMyLatestStory(String currentUserId) {
-    final myStories = stories
-        .where((s) => s.userId == currentUserId)
-        .toList();
+    final myStories = stories.where((s) => s.userId == currentUserId).toList();
 
     if (myStories.isEmpty) return null;
 
@@ -38,9 +36,9 @@ class StoryController extends GetxController {
   }
 
   List<StoryModel> getOtherUsersStories(String currentUserId) {
-
-    final otherStories =
-    stories.where((s) => s.userId != currentUserId).toList();
+    final otherStories = stories
+        .where((s) => s.userId != currentUserId)
+        .toList();
 
     final Map<String, List<StoryModel>> grouped = {};
 
@@ -52,17 +50,13 @@ class StoryController extends GetxController {
     final result = <StoryModel>[];
 
     grouped.forEach((userId, userStories) {
-
       // latest story
-      userStories.sort(
-            (a, b) => b.createdAt.compareTo(a.createdAt),
-      );
+      userStories.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       final latestStory = userStories.first;
 
       // 🔥 check if ANY story unseen
-      final hasUnseen =
-      userStories.any((s) => !s.isViewed);
+      final hasUnseen = userStories.any((s) => !s.isViewed);
 
       latestStory.isViewed = !hasUnseen;
 
@@ -73,7 +67,6 @@ class StoryController extends GetxController {
   }
 
   List<StoryModel> getOtherUsersStoriesV1(String currentUserId) {
-
     final otherStories = stories
         .where((s) => s.userId != currentUserId)
         .toList();
@@ -111,10 +104,7 @@ class StoryController extends GetxController {
 
       stories.assignAll(data);
 
-      stories.sort(
-            (a, b) => b.createdAt.compareTo(a.createdAt),
-      );
-
+      stories.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     } catch (e) {
       print("Fetch Story Error: $e");
     } finally {
@@ -131,8 +121,7 @@ class StoryController extends GetxController {
       stories.assignAll(data);
 
       // latest first
-      stories.sort((a, b) =>
-          b.createdAt.compareTo(a.createdAt));
+      stories.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     } catch (e) {
       print("Fetch Story Error: $e");
     } finally {
@@ -148,18 +137,12 @@ class StoryController extends GetxController {
     required File file,
     required StoryMediaType mediaType,
   }) async {
-
     try {
       isUploading.value = true;
 
-      await _service.addStory(
-        userId: userId,
-        file: file,
-        mediaType: mediaType,
-      );
+      await _service.addStory(userId: userId, file: file, mediaType: mediaType);
 
       await fetchStories();
-
     } catch (e) {
       print("Upload Story Error: $e");
     } finally {
@@ -175,7 +158,6 @@ class StoryController extends GetxController {
     required List<File> files,
     required List<StoryMediaType> mediaTypes,
   }) async {
-
     try {
       isUploading.value = true;
 
@@ -186,7 +168,6 @@ class StoryController extends GetxController {
       );
 
       await fetchStories();
-
     } catch (e) {
       print("Batch Upload Error: $e");
     } finally {
@@ -209,10 +190,7 @@ class StoryController extends GetxController {
     required String storyId,
     required String viewerId,
   }) async {
-    await _service.markStoryViewed(
-      storyId: storyId,
-      viewerId: viewerId,
-    );
+    await _service.markStoryViewed(storyId: storyId, viewerId: viewerId);
   }
 
   Future<void> isViewed({

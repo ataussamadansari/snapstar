@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -125,12 +127,22 @@ class ProfileController extends GetxController with GetSingleTickerProviderState
     }
 
     try {
-      postsCount.value = await _postRepo.fetchUserPostsCount(userId);
+      final dbCount = await _postRepo.fetchUserPostsCount(userId);
+      postsCount.value = math.max(dbCount, allPosts.length);
     } catch (error, stackTrace) {
       debugPrint('ProfileController._refreshPostCount error: $error');
       debugPrint('ProfileController._refreshPostCount stack: $stackTrace');
       postsCount.value = allPosts.length;
     }
+  }
+
+  Future<void> refreshProfileData() async {
+    await Future.wait<void>([
+      fetchMyProfile(),
+      fetchAllMyPosts(),
+      _refreshPostCount(),
+      _refreshFollowCounts(),
+    ]);
   }
 
   Future<void> logout() async {

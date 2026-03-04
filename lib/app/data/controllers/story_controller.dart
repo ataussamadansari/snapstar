@@ -1,6 +1,10 @@
 import 'dart:io';
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:snapstar_app/app/core/utils/auth_helper.dart';
+import 'package:snapstar_app/app/core/utils/helpers.dart';
+import 'package:snapstar_app/app/data/controllers/upload_task_controller.dart';
 import '../models/story_model.dart';
 import '../services/story_service.dart';
 
@@ -13,6 +17,7 @@ class StoryController extends GetxController {
 
   RxBool isLoading = false.obs;
   RxBool isUploading = false.obs;
+  final UploadTaskController _uploadTaskController = Get.find();
 
   // Already viewed in current session
   final Set<String> _locallyViewed = {};
@@ -131,7 +136,7 @@ class StoryController extends GetxController {
       stories.refresh();
 
     } catch (e) {
-      print("Fetch Story Error: $e");
+      debugPrint('Fetch Story Error: $e');
     } finally {
       isLoading.value = false;
     }
@@ -149,7 +154,7 @@ class StoryController extends GetxController {
       stories.sort((a, b) =>
           b.createdAt.compareTo(a.createdAt));
     } catch (e) {
-      print("Fetch Story Error: $e");
+      debugPrint('Fetch Story Error: $e');
     } finally {
       isLoading.value = false;
     }
@@ -163,23 +168,43 @@ class StoryController extends GetxController {
     required File file,
     required StoryMediaType mediaType,
   }) async {
-
-    try {
-      isUploading.value = true;
-
-      await _service.addStory(
-        userId: userId,
-        file: file,
-        mediaType: mediaType,
-      );
-
-      await fetchStories();
-
-    } catch (e) {
-      print("Upload Story Error: $e");
-    } finally {
-      isUploading.value = false;
+    if (isUploading.value) {
+      return;
     }
+    isUploading.value = true;
+
+    AppHelpers.showSnackBar(
+      title: 'Uploading',
+      message: 'Story upload started in background',
+      isError: false,
+    );
+
+    Future<void>.microtask(() async {
+      final taskId = _uploadTaskController.start(
+        type: UploadTaskType.story,
+        label: 'Uploading story...',
+      );
+      try {
+        _uploadTaskController.updateTask(taskId, progress: 0.2, label: 'Preparing story...');
+        await _service.addStory(
+          userId: userId,
+          file: file,
+          mediaType: mediaType,
+        );
+        _uploadTaskController.updateTask(taskId, progress: 0.9, label: 'Publishing story...');
+        await fetchStories();
+        _uploadTaskController.complete(taskId);
+      } catch (e) {
+        _uploadTaskController.fail(taskId, 'Story upload failed');
+        AppHelpers.showSnackBar(
+          title: 'Error',
+          message: 'Story upload failed',
+          isError: true,
+        );
+      } finally {
+        isUploading.value = false;
+      }
+    });
   }
 
   // ===============================
@@ -191,22 +216,45 @@ class StoryController extends GetxController {
     required List<StoryMediaType> mediaTypes,
   }) async {
 
-    try {
-      isUploading.value = true;
-
-      await _service.addMultipleStories(
-        userId: userId,
-        files: files,
-        mediaTypes: mediaTypes,
-      );
-
-      await fetchStories();
-
-    } catch (e) {
-      print("Batch Upload Error: $e");
-    } finally {
-      isUploading.value = false;
+    if (isUploading.value) {
+      return;
     }
+
+    isUploading.value = true;
+
+    Future<void>.microtask(() async {
+      final taskId = _uploadTaskController.start(
+        type: UploadTaskType.story,
+        label: 'Uploading stories...',
+      );
+      try {
+        final total = files.isEmpty ? 1 : files.length;
+        for (var i = 0; i < files.length; i++) {
+          _uploadTaskController.updateTask(
+            taskId,
+            label: 'Uploading story ${i + 1}/$total',
+            progress: (i / total) * 0.9,
+          );
+          await _service.addStory(
+            userId: userId,
+            file: files[i],
+            mediaType: mediaTypes[i],
+          );
+        }
+        _uploadTaskController.updateTask(taskId, label: 'Publishing stories...', progress: 0.95);
+        await fetchStories();
+        _uploadTaskController.complete(taskId);
+      } catch (e) {
+        _uploadTaskController.fail(taskId, 'Story upload failed');
+        AppHelpers.showSnackBar(
+          title: 'Error',
+          message: 'Story upload failed',
+          isError: true,
+        );
+      } finally {
+        isUploading.value = false;
+      }
+    });
   }
 
   // ===============================

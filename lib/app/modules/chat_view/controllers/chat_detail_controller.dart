@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:snapstar_app/app/core/utils/helpers.dart';
 
 import '../../../data/models/conversation_model.dart';
 import '../../../data/models/message_model.dart';
@@ -30,6 +31,7 @@ class ChatDetailController extends GetxController {
   final Rxn<ConversationModel> conversation = Rxn<ConversationModel>();
   final TextEditingController messageController = TextEditingController();
   final ScrollController scrollController = ScrollController();
+  final RxBool isLoading = true.obs;
   final RxBool isSending = false.obs;
   final RxBool isLoadingMedia = false.obs;
   final RxnString errorMessage = RxnString();
@@ -45,12 +47,24 @@ class ChatDetailController extends GetxController {
     _scheduleMarkAsRead();
   }
 
-  Future<void> _fetchConversation() async {
+  /*Future<void> _fetchConversation() async {
     final conv = await _chatRepo.fetchConversation(conversationId);
     conversation.value = conv;
+  }*/
+
+  Future<void> _fetchConversation() async {
+    try {
+      isLoading.value = true;
+      final conv = await _chatRepo.fetchConversation(conversationId);
+      conversation.value = conv;
+    } catch (e) {
+      errorMessage.value = 'Failed to load conversation';
+    } finally {
+      isLoading.value = false;
+    }
   }
 
-  void _watchMessages() {
+  /*void _watchMessages() {
     _messagesSub = _chatRepo
         .watchMessages(conversationId)
         .listen(
@@ -74,6 +88,24 @@ class ChatDetailController extends GetxController {
             errorMessage.value = 'Failed to load messages';
           },
         );
+  }*/
+
+  void _watchMessages() {
+    isLoading.value = true;
+
+    _messagesSub = _chatRepo
+        .watchMessages(conversationId)
+        .listen(
+          (data) {
+        messages.assignAll(data);
+        errorMessage.value = null;
+        isLoading.value = false;
+      },
+      onError: (error) {
+        errorMessage.value = 'Failed to load messages';
+        isLoading.value = false;
+      },
+    );
   }
 
   void _scheduleMarkAsRead() {
@@ -100,10 +132,10 @@ class ChatDetailController extends GetxController {
     } catch (error) {
       debugPrint('ChatDetailController.sendTextMessage error: $error');
       errorMessage.value = 'Failed to send message';
-      Get.snackbar(
-        'Error',
-        'Failed to send message',
-        snackPosition: SnackPosition.BOTTOM,
+      AppHelpers.showSnackBar(
+        title: 'Error',
+        message: 'Failed to send message',
+        isError: true,
       );
     } finally {
       isSending.value = false;
@@ -134,10 +166,10 @@ class ChatDetailController extends GetxController {
     } catch (error) {
       debugPrint('ChatDetailController.sendImageMessage error: $error');
       errorMessage.value = 'Failed to send image';
-      Get.snackbar(
-        'Error',
-        'Failed to send image',
-        snackPosition: SnackPosition.BOTTOM,
+      AppHelpers.showSnackBar(
+        title: 'Error',
+        message: 'Failed to send image',
+        isError: true,
       );
     } finally {
       isLoadingMedia.value = false;
@@ -169,10 +201,10 @@ class ChatDetailController extends GetxController {
     } catch (error) {
       debugPrint('ChatDetailController.sendVideoMessage error: $error');
       errorMessage.value = 'Failed to send video';
-      Get.snackbar(
-        'Error',
-        'Failed to send video',
-        snackPosition: SnackPosition.BOTTOM,
+      AppHelpers.showSnackBar(
+        title: 'Error',
+        message: 'Failed to send video',
+        isError: true,
       );
     } finally {
       isLoadingMedia.value = false;
@@ -188,18 +220,18 @@ class ChatDetailController extends GetxController {
       await _chatRepo.sharePost(conversationId, postId, type, null);
 
       Get.back(); // Close share dialog
-      Get.snackbar(
-        'Success',
-        'Post shared successfully',
-        snackPosition: SnackPosition.BOTTOM,
+      AppHelpers.showSnackBar(
+        title: 'Success',
+        message: 'Post shared successfully',
+        isError: false,
       );
     } catch (error) {
       debugPrint('ChatDetailController.sharePost error: $error');
       errorMessage.value = 'Failed to share post';
-      Get.snackbar(
-        'Error',
-        'Failed to share post',
-        snackPosition: SnackPosition.BOTTOM,
+      AppHelpers.showSnackBar(
+        title: 'Error',
+        message: 'Failed to share post',
+        isError: true,
       );
     } finally {
       isSending.value = false;
@@ -209,40 +241,18 @@ class ChatDetailController extends GetxController {
   Future<void> deleteMessage(String messageId) async {
     try {
       await _chatRepo.deleteMessage(messageId);
-      Get.snackbar(
-        'Success',
-        'Message deleted',
-        snackPosition: SnackPosition.BOTTOM,
+      AppHelpers.showSnackBar(
+        title: 'Success',
+        message: 'Message deleted',
+        isError: false,
       );
     } catch (error) {
       debugPrint('ChatDetailController.deleteMessage error: $error');
-      Get.snackbar(
-        'Error',
-        'Failed to delete message',
-        snackPosition: SnackPosition.BOTTOM,
+      AppHelpers.showSnackBar(
+        title: 'Error',
+        message: 'Failed to delete message',
+        isError: true,
       );
-    }
-  }
-
-  void _scrollToBottom({bool animated = true}) {
-    if (!scrollController.hasClients) return;
-
-    if (animated) {
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (scrollController.hasClients) {
-          scrollController.animateTo(
-            scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        }
-      });
-    } else {
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (scrollController.hasClients) {
-          scrollController.jumpTo(scrollController.position.maxScrollExtent);
-        }
-      });
     }
   }
 

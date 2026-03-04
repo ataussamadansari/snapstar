@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:snapstar_app/app/global_widgets/loading_skeleton.dart';
 
 import '../controllers/notification_controller.dart';
 
@@ -10,11 +11,15 @@ class NotificationScreen extends GetView<NotificationController> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        elevation: 0,
+        scrolledUnderElevation: 0,
         title: const Text('Notifications'),
       ),
       body: Obx(() {
         if (controller.isLoading.value && controller.notifications.isEmpty) {
-          return const Center(child: CircularProgressIndicator());
+          return const AppShimmer(
+            child: UserListSkeleton(itemCount: 8),
+          );
         }
 
         if (controller.errorMessage.value != null &&
@@ -46,68 +51,46 @@ class NotificationScreen extends GetView<NotificationController> {
           },
           child: RefreshIndicator(
             onRefresh: () => controller.fetchNotifications(refresh: true),
-            child: ListView.separated(
+            child: ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
               itemCount: controller.notifications.length + (controller.isLoadingMore.value ? 1 : 0),
-              separatorBuilder: (_, __) => const Divider(height: 1),
               itemBuilder: (context, index) {
                 if (index >= controller.notifications.length) {
                   return const Padding(
                     padding: EdgeInsets.symmetric(vertical: 14),
-                    child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    child: Center(
+                      child: AppShimmer(
+                        child: SkeletonBox(
+                          width: 120,
+                          height: 14,
+                        ),
+                      ),
+                    ),
                   );
                 }
 
                 final item = controller.notifications[index];
                 final isRead = item['is_read'] == true;
 
-                return ListTile(
-                  onTap: () => controller.markAsRead(item),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 4,
-                  ),
-                  leading: CircleAvatar(
-                    backgroundColor: controller.iconColorOf(item).withValues(alpha: 0.14),
-                    child: Icon(
-                      controller.iconOf(item),
-                      color: controller.iconColorOf(item),
-                      size: 20,
-                    ),
-                  ),
-                  title: Text(
-                    controller.titleOf(item),
-                    style: TextStyle(
-                      fontWeight: isRead ? FontWeight.w500 : FontWeight.w700,
-                    ),
-                  ),
-                  subtitle: Text(
-                    controller.messageOf(item),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        controller.timeAgoOf(item),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      if (!isRead) ...[
-                        const SizedBox(height: 6),
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Colors.blueAccent,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ],
-                    ],
+                return TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 0, end: 1),
+                  duration: Duration(milliseconds: 220 + ((index % 8) * 35)),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, value, child) {
+                    return Transform.translate(
+                      offset: Offset(0, (1 - value) * 12),
+                      child: Opacity(opacity: value, child: child),
+                    );
+                  },
+                  child: _NotificationCard(
+                    isRead: isRead,
+                    icon: controller.iconOf(item),
+                    iconColor: controller.iconColorOf(item),
+                    title: controller.titleOf(item),
+                    message: controller.messageOf(item),
+                    timeLabel: controller.timeAgoOf(item),
+                    onTap: () => controller.handleNotificationTap(item),
                   ),
                 );
               },
@@ -115,6 +98,116 @@ class NotificationScreen extends GetView<NotificationController> {
           ),
         );
       }),
+    );
+  }
+}
+
+class _NotificationCard extends StatelessWidget {
+  const _NotificationCard({
+    required this.isRead,
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.message,
+    required this.timeLabel,
+    required this.onTap,
+  });
+
+  final bool isRead;
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String message;
+  final String timeLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cardColor = isRead
+        ? Theme.of(context).colorScheme.surface
+        : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.45);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Ink(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            decoration: BoxDecoration(
+              color: cardColor,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isRead
+                    ? Theme.of(context).dividerColor.withValues(alpha: 0.2)
+                    : iconColor.withValues(alpha: 0.24),
+              ),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: iconColor.withValues(alpha: 0.14),
+                  child: Icon(
+                    icon,
+                    color: iconColor,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontWeight: isRead ? FontWeight.w600 : FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        message,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.82),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      timeLabel,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    if (!isRead) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Colors.blueAccent,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

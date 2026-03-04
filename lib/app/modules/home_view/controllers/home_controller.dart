@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 
 import 'package:snapstar_app/app/data/controllers/story_controller.dart';
+import 'package:snapstar_app/app/data/repositories/auth_repository.dart';
+import 'package:snapstar_app/app/data/services/local_cache_service.dart';
 
 import '../../../data/models/post_model.dart';
 import '../../../data/models/user_model.dart';
@@ -15,15 +17,20 @@ class HomeController extends GetxController {
     this.postRepo,
     this.subscriberRepo,
     this.storyController,
+    this.authRepository,
+    this.cacheService,
   );
 
   final UserRepository userRepo;
   final PostRepository postRepo;
   final SubscriberRepository subscriberRepo;
   final StoryController storyController;
+  final AuthRepository authRepository;
+  final LocalCacheService cacheService;
 
   final RxList<UserModel> users = <UserModel>[].obs;
   final RxList<PostModel> posts = <PostModel>[].obs;
+  final RxnString myAvatarUrl = RxnString();
 
   final RxBool isLoadingUsers = false.obs;
   final RxBool isLoadingPosts = false.obs;
@@ -31,7 +38,9 @@ class HomeController extends GetxController {
   final RxBool hasMorePosts = true.obs;
 
   final int _feedPageSize = 10;
-  int _feedOffset = 0;
+  DateTime? _feedCursorCreatedAt;
+  String? _feedCursorId;
+  double? _feedCursorScore;
 
   VoidCallback? _unsubscribePostChanges;
   VoidCallback? _unsubscribeRelationChanges;
@@ -41,17 +50,37 @@ class HomeController extends GetxController {
     super.onInit();
     _subscribeToPostChanges();
     _subscribeToRelationChanges();
+    _hydrateFromCache();
     refreshAll();
   }
 
   Future<void> refreshAll() async {
-    _feedOffset = 0;
+    _feedCursorCreatedAt = null;
+    _feedCursorId = null;
+    _feedCursorScore = null;
     hasMorePosts.value = true;
-    posts.clear();
 
+    await _loadMyProfile();
     await loadPosts(refresh: true);
     await loadUsers(refresh: true);
     await storyController.fetchStories();
+  }
+
+  Future<void> _loadMyProfile() async {
+    final userId = authRepository.currentUserId;
+    if (userId == null || userId.isEmpty) {
+      myAvatarUrl.value = null;
+      return;
+    }
+
+    try {
+      final profile = await userRepo.fetchProfile(userId);
+      final avatar = profile?.avatarUrl?.trim();
+      myAvatarUrl.value = (avatar != null && avatar.isNotEmpty) ? avatar : null;
+    } catch (error, stackTrace) {
+      debugPrint('HomeController._loadMyProfile error: $error');
+      debugPrint('HomeController._loadMyProfile stack: $stackTrace');
+    }
   }
 
   Future<void> loadUsers({bool refresh = false}) async {
@@ -80,16 +109,20 @@ class HomeController extends GetxController {
 
   Future<void> loadPosts({bool refresh = false}) async {
     if (refresh) {
-      _feedOffset = 0;
+      _feedCursorCreatedAt = null;
+      _feedCursorId = null;
+      _feedCursorScore = null;
       hasMorePosts.value = true;
-      posts.clear();
     }
 
-    if (!hasMorePosts.value || isLoadingPosts.value || isLoadingMorePosts.value) {
+    if (!hasMorePosts.value ||
+        isLoadingPosts.value ||
+        isLoadingMorePosts.value) {
       return;
     }
 
-    final bool isFirstPage = _feedOffset == 0;
+    final bool isFirstPage =
+        _feedCursorCreatedAt == null || _feedCursorId == null;
 
     if (isFirstPage) {
       isLoadingPosts.value = true;
@@ -98,25 +131,28 @@ class HomeController extends GetxController {
     }
 
     try {
-      final feed = await postRepo.fetchFeedPosts(
+      final page = await postRepo.fetchFeedPostsByCursor(
         limit: _feedPageSize,
-        offset: _feedOffset,
+        cursorCreatedAt: _feedCursorCreatedAt,
+        cursorId: _feedCursorId,
+        cursorScore: _feedCursorScore,
       );
-      final randomized = List<PostModel>.from(feed)..shuffle();
+      final fetched = page.items;
+      final prepared = fetched;
 
       if (isFirstPage) {
-        posts.assignAll(randomized);
+        posts.assignAll(prepared);
       } else {
         final existingIds = posts.map((post) => post.id).toSet();
-        final unique = randomized.where((post) => !existingIds.contains(post.id));
+        final unique = prepared.where((post) => !existingIds.contains(post.id));
         posts.addAll(unique);
       }
 
-      if (randomized.length < _feedPageSize) {
-        hasMorePosts.value = false;
-      } else {
-        _feedOffset += randomized.length;
-      }
+      hasMorePosts.value = page.hasMore;
+      _feedCursorCreatedAt = page.nextCursorCreatedAt;
+      _feedCursorId = page.nextCursorId;
+      _feedCursorScore = page.nextCursorScore;
+      _persistFeedCache();
     } catch (error, stackTrace) {
       debugPrint('HomeController.loadPosts error: $error');
       debugPrint('HomeController.loadPosts stack: $stackTrace');
@@ -129,6 +165,84 @@ class HomeController extends GetxController {
     }
   }
 
+  Future<void> _hydrateFromCache() async {
+    final userId = authRepository.currentUserId;
+    if (userId == null) {
+      return;
+    }
+
+    final payload = await cacheService.getJson('home_feed_$userId');
+    final itemsRaw = payload?['items'];
+    if (itemsRaw is! List || itemsRaw.isEmpty) {
+      return;
+    }
+
+    try {
+      final restored = itemsRaw
+          .whereType<Map>()
+          .map((row) => PostModel.fromJson(Map<String, dynamic>.from(row)))
+          .toList();
+      if (restored.isNotEmpty && posts.isEmpty) {
+        posts.assignAll(restored);
+      }
+    } catch (error, stackTrace) {
+      debugPrint('HomeController._hydrateFromCache error: $error');
+      debugPrint('HomeController._hydrateFromCache stack: $stackTrace');
+    }
+  }
+
+  Future<void> _persistFeedCache() async {
+    final userId = authRepository.currentUserId;
+    if (userId == null || posts.isEmpty) {
+      return;
+    }
+
+    final payload = <String, dynamic>{
+      'items': posts
+          .take(40)
+          .map(
+            (post) => {
+              'id': post.id,
+              'user_id': post.userId,
+              'media_type': post.mediaType.name,
+              'caption': post.caption,
+              'media_urls': post.mediaUrls,
+              'thumbnail_urls': post.thumbnailUrls,
+              'like_count': post.likeCount,
+              'comment_count': post.commentCount,
+              'share_count': post.shareCount,
+              'is_deleted': post.isDeleted,
+              'location': post.location,
+              'created_at': post.createdAt.toUtc().toIso8601String(),
+              'updated_at': post.updatedAt.toUtc().toIso8601String(),
+              if (post.user != null)
+                'users': {
+                  'id': post.user!.id,
+                  'name': post.user!.name,
+                  'username': post.user!.username,
+                  'email': post.user!.email,
+                  'phone': post.user!.phone,
+                  'avatar_url': post.user!.avatarUrl,
+                  'bio': post.user!.bio,
+                  'role': post.user!.role,
+                  'posts_count': post.user!.postsCount,
+                  'subscriber_count': post.user!.subscriberCount,
+                  'subscribing_count': post.user!.subscribingCount,
+                  'created_at': post.user!.createdAt.toUtc().toIso8601String(),
+                  'updated_at': post.user!.updatedAt.toUtc().toIso8601String(),
+                },
+            },
+          )
+          .toList(),
+    };
+
+    await cacheService.putJson(
+      'home_feed_$userId',
+      payload,
+      ttl: const Duration(minutes: 3),
+    );
+  }
+
   Future<void> loadMorePosts() {
     return loadPosts(refresh: false);
   }
@@ -136,11 +250,36 @@ class HomeController extends GetxController {
   void _subscribeToPostChanges() {
     _unsubscribePostChanges ??= postRepo.subscribeToFeedChanges(
       onEvent: (change) {
-        final next = postRepo.mergeFeedPosts(
-          current: posts.toList(),
-          change: change,
-        );
-        posts.assignAll(next);
+        final current = List<PostModel>.from(posts);
+        final index = current.indexWhere((post) => post.id == change.postId);
+
+        switch (change.type) {
+          case PostModelChangeType.insert:
+            if (change.post == null) {
+              return;
+            }
+            final updated = List<PostModel>.from(current)
+              ..removeWhere((post) => post.id == change.postId)
+              ..insert(0, change.post!);
+            if (updated.length > 80) {
+              updated.removeRange(80, updated.length);
+            }
+            posts.assignAll(updated);
+            _persistFeedCache();
+            return;
+          case PostModelChangeType.update:
+            if (index >= 0 && change.post != null) {
+              current[index] = change.post!;
+              posts.assignAll(current);
+            }
+            return;
+          case PostModelChangeType.delete:
+            if (index >= 0) {
+              current.removeAt(index);
+              posts.assignAll(current);
+            }
+            return;
+        }
       },
     );
   }

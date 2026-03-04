@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../core/utils/cursor_page.dart';
 import '../services/notification_service.dart';
 
 class NotificationRepository {
@@ -20,6 +21,20 @@ class NotificationRepository {
       userId: userId,
       limit: limit,
       offset: offset,
+    );
+  }
+
+  Future<CursorPage<Map<String, dynamic>>> fetchNotificationsByCursor({
+    required String userId,
+    int limit = 20,
+    DateTime? cursorCreatedAt,
+    String? cursorId,
+  }) {
+    return _service.fetchNotificationsByCursor(
+      userId: userId,
+      limit: limit,
+      cursorCreatedAt: cursorCreatedAt,
+      cursorId: cursorId,
     );
   }
 

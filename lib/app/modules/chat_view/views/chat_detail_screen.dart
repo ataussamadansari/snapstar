@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:snapstar_app/app/core/utils/helpers.dart';
 
 import '../../../core/utils/date_time_extension.dart';
 import '../../../data/models/message_model.dart';
@@ -134,7 +135,7 @@ class ChatDetailScreen extends GetView<ChatDetailController> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 4,
             offset: const Offset(0, -2),
           ),
@@ -395,7 +396,7 @@ class _MessageBubble extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withValues(alpha: 0.5),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -452,7 +453,7 @@ class _MessageBubble extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.5),
+                          color: Colors.black.withValues(alpha: 0.5),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -504,18 +505,17 @@ class _MessageBubble extends StatelessWidget {
         Get.back(); // Close chat list
         mainController.changeIndex(3); // Switch to reels tab (index 3)
       } catch (e) {
-        Get.snackbar(
-          'Error',
-          'Unable to open reel',
-          snackPosition: SnackPosition.BOTTOM,
+        AppHelpers.showSnackBar(
+          title: 'Error',
+          message: 'Unable to open reel',
+          isError: true,
         );
       }
     } else {
-      // For posts, show a message
-      Get.snackbar(
-        'Shared Post',
-        'Post shared in chat',
-        snackPosition: SnackPosition.BOTTOM,
+      AppHelpers.showSnackBar(
+        title: 'Shared Post',
+        message: 'Post shared in chat',
+        isError: false,
         duration: const Duration(seconds: 2),
       );
     }

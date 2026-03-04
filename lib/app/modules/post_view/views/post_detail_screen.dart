@@ -87,9 +87,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final current = _posts[_currentIndex];
-    // username not displayed now since appbar is static label
-
     return Scaffold(
       appBar: AppBar(
         elevation: 0,

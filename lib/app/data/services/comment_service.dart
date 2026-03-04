@@ -26,9 +26,9 @@ class CommentService {
   final CommentProvider _provider;
   final SupabaseClient _client;
 
-  RealtimeChannel? _channel;
   final Map<String, Set<void Function(CommentRealtimeChange)>> _postListeners =
       <String, Set<void Function(CommentRealtimeChange)>>{};
+  final Map<String, RealtimeChannel> _postChannels = <String, RealtimeChannel>{};
   final Map<String, String> _commentPostMap = <String, String>{};
 
   Future<void> createComment(Map<String, dynamic> data) async {
@@ -111,7 +111,7 @@ class CommentService {
     );
     _postListeners[postId]!.add(onEvent);
 
-    _ensureRealtimeChannel();
+    _ensureRealtimeChannelForPost(postId);
 
     return () {
       final listeners = _postListeners[postId];
@@ -124,7 +124,7 @@ class CommentService {
         _postListeners.remove(postId);
       }
 
-      _disposeChannelIfIdle();
+      _disposeChannelIfIdle(postId);
     };
   }
 
@@ -158,18 +158,24 @@ class CommentService {
     }
   }
 
-  void _ensureRealtimeChannel() {
-    if (_channel != null) {
+  void _ensureRealtimeChannelForPost(String postId) {
+    if (_postChannels.containsKey(postId)) {
       return;
     }
 
-    _channel = _client.channel('comments-realtime-channel');
+    final channel = _client.channel('comments-realtime-$postId');
+    _postChannels[postId] = channel;
 
-    _channel!
+    channel
       ..onPostgresChanges(
         event: PostgresChangeEvent.all,
         schema: 'public',
         table: 'comments',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'post_id',
+          value: postId,
+        ),
         callback: _handleCommentRealtime,
       )
       ..subscribe();
@@ -279,13 +285,18 @@ class CommentService {
     );
   }
 
-  void _disposeChannelIfIdle() {
-    if (_channel == null || _postListeners.isNotEmpty) {
+  void _disposeChannelIfIdle(String postId) {
+    final listeners = _postListeners[postId];
+    if (listeners != null && listeners.isNotEmpty) {
       return;
     }
 
-    _client.removeChannel(_channel!);
-    _channel = null;
+    final channel = _postChannels.remove(postId);
+    if (channel == null) {
+      return;
+    }
+
+    _client.removeChannel(channel);
   }
 
   Future<void> _createCommentNotification({

@@ -3,14 +3,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/conversation_model.dart';
 import '../models/message_model.dart';
-import '../models/user_model.dart';
 import './auth_repository.dart';
 
 class ChatRepository {
   final SupabaseClient _client;
-  final AuthRepository _authRepo;
 
-  ChatRepository(this._client, this._authRepo);
+  ChatRepository(this._client, AuthRepository _authRepo);
 
   // Get or create conversation with another user
   Future<String> getOrCreateConversation(String otherUserId) async {
@@ -69,60 +67,16 @@ class ChatRepository {
         .from('messages')
         .stream(primaryKey: ['id'])
         .order('created_at', ascending: true)
-        .map((data) async {
-          final messages = <MessageModel>[];
-
-          for (final json in data) {
-            // Filter by conversation_id and is_deleted
-            if (json['conversation_id'] != conversationId ||
-                json['is_deleted'] == true) {
-              continue;
-            }
-
-            // Fetch sender details
-            UserModel? sender;
-            final senderId = json['sender_id'] as String?;
-            if (senderId != null) {
-              sender = await _fetchUser(senderId);
-            }
-
-            // Fetch shared post user details if applicable
-            UserModel? sharedPostUser;
-            final sharedPostUserId = json['shared_post_user_id'] as String?;
-            if (sharedPostUserId != null) {
-              sharedPostUser = await _fetchUser(sharedPostUserId);
-            }
-
-            messages.add(
-              MessageModel.fromJson({
-                ...json,
-                if (sender != null) 'sender': sender.toJson(),
-                if (sharedPostUser != null)
-                  'shared_post_user': sharedPostUser.toJson(),
-              }),
-            );
-          }
-
-          return messages;
-        })
-        .asyncMap((future) => future);
-  }
-
-  // Helper to fetch user details
-  Future<UserModel?> _fetchUser(String userId) async {
-    try {
-      final response = await _client
-          .from('users')
-          .select()
-          .eq('id', userId)
-          .maybeSingle();
-
-      if (response == null) return null;
-      return UserModel.fromJson(response);
-    } catch (error) {
-      debugPrint('ChatRepository._fetchUser error: $error');
-      return null;
-    }
+        .map(
+          (data) => data
+              .where(
+                (json) =>
+                    json['conversation_id'] == conversationId &&
+                    json['is_deleted'] != true,
+              )
+              .map((json) => MessageModel.fromJson(json))
+              .toList(),
+        );
   }
 
   // Send text message

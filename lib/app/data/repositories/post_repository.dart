@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../../core/utils/cursor_page.dart';
 import '../models/post_model.dart';
 import '../services/post_service.dart';
 
@@ -58,6 +59,44 @@ class PostRepository {
     return raw.map((e) => PostModel.fromJson(e)).toList();
   }
 
+  Future<List<PostModel>> fetchExplorePosts({
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final raw = await _service.fetchExplorePosts(limit: limit, offset: offset);
+    return raw.map((e) => PostModel.fromJson(e)).toList();
+  }
+
+  Future<List<PostModel>> fetchTrendingPosts({
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final raw = await _service.fetchTrendingPosts(limit: limit, offset: offset);
+    return raw.map((e) => PostModel.fromJson(e)).toList();
+  }
+
+  Future<CursorPage<PostModel>> fetchFeedPostsByCursor({
+    int limit = 20,
+    DateTime? cursorCreatedAt,
+    String? cursorId,
+    double? cursorScore,
+  }) async {
+    final page = await _service.fetchFeedPostsByCursor(
+      limit: limit,
+      cursorCreatedAt: cursorCreatedAt,
+      cursorId: cursorId,
+      cursorScore: cursorScore,
+    );
+
+    return CursorPage<PostModel>(
+      items: page.items.map((e) => PostModel.fromJson(e)).toList(),
+      nextCursorCreatedAt: page.nextCursorCreatedAt,
+      nextCursorId: page.nextCursorId,
+      nextCursorScore: page.nextCursorScore,
+      hasMore: page.hasMore,
+    );
+  }
+
   Future<List<PostModel>> fetchUserPosts(
     String userId, {
     MediaType? type,
@@ -83,6 +122,26 @@ class PostRepository {
     return raw.map((e) => PostModel.fromJson(e)).toList();
   }
 
+  Future<CursorPage<PostModel>> fetchReelsByCursor({
+    int limit = 20,
+    DateTime? cursorCreatedAt,
+    String? cursorId,
+  }) async {
+    final page = await _service.fetchVideoPostsByCursor(
+      limit: limit,
+      cursorCreatedAt: cursorCreatedAt,
+      cursorId: cursorId,
+    );
+
+    return CursorPage<PostModel>(
+      items: page.items.map((e) => PostModel.fromJson(e)).toList(),
+      nextCursorCreatedAt: page.nextCursorCreatedAt,
+      nextCursorId: page.nextCursorId,
+      nextCursorScore: page.nextCursorScore,
+      hasMore: page.hasMore,
+    );
+  }
+
   Future<List<PostModel>> searchPosts({
     required String query,
     int limit = 30,
@@ -97,8 +156,23 @@ class PostRepository {
     return raw.map((e) => PostModel.fromJson(e)).toList();
   }
 
+  Future<List<Map<String, dynamic>>> searchHashtags({
+    required String query,
+    int limit = 20,
+  }) {
+    return _service.searchHashtags(query: query, limit: limit);
+  }
+
   Future<int> getShareCount(String postId) {
     return _service.fetchShareCount(postId);
+  }
+
+  Future<PostModel?> fetchPostById(String postId) async {
+    final raw = await _service.fetchPostById(postId);
+    if (raw == null) {
+      return null;
+    }
+    return PostModel.fromJson(raw);
   }
 
   Future<void> incrementShareCount(String postId) {

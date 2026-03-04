@@ -11,7 +11,6 @@ import '../../../data/controllers/like_controller.dart';
 import '../../../data/controllers/share_controller.dart';
 import '../../../data/models/post_model.dart';
 import '../../../data/repositories/auth_repository.dart';
-import '../../../data/repositories/post_repository.dart';
 import '../../../global_widgets/auto_play_video.dart';
 import '../../../global_widgets/comment_bottom_sheet.dart';
 import '../../../global_widgets/loading_skeleton.dart';
@@ -20,8 +19,6 @@ import '../../../global_widgets/subscribe_button.dart';
 import '../../main_view/controllers/main_controller.dart';
 import '../../../routes/app_routes.dart';
 import '../controllers/reels_controller.dart';
-
-enum _ReelPostAction { edit, delete }
 
 class ReelsScreen extends StatefulWidget {
   const ReelsScreen({super.key});
@@ -92,6 +89,7 @@ class _ReelsScreenState extends State<ReelsScreen> {
                 itemCount: _controller.reels.length,
                 itemBuilder: (context, index) {
                   return _ReelView(
+                    key: ValueKey(_controller.reels[index].id),
                     post: _controller.reels[index],
                     isActive: index == activeReelIndex,
                     isScreenActive: isReelsScreenActive,
@@ -115,6 +113,7 @@ class _ReelsScreenState extends State<ReelsScreen> {
 
 class _ReelView extends StatefulWidget {
   const _ReelView({
+    super.key,
     required this.post,
     required this.isActive,
     required this.isScreenActive,
@@ -135,14 +134,10 @@ class _ReelViewState extends State<_ReelView>
   final _shareController = Get.find<ShareController>();
   final _mediaController = Get.find<GlobalMediaController>();
   final _authRepo = Get.find<AuthRepository>();
-  final _postRepo = Get.find<PostRepository>();
 
   late PostModel _post;
 
   bool _isCaptionExpanded = false;
-  bool _isPostActionLoading = false;
-
-  bool get _isOwnPost => _authRepo.currentUserId == _post.userId;
 
   @override
   bool get wantKeepAlive => true;
@@ -152,7 +147,8 @@ class _ReelViewState extends State<_ReelView>
     super.initState();
     _post = widget.post;
 
-    Future.microtask(() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _likeController.initializePost(_post.id, _post.likeCount);
       _commentController.initializePost(_post.id, _post.commentCount);
       _shareController.initializePost(_post.id, _post.shareCount);
@@ -166,9 +162,12 @@ class _ReelViewState extends State<_ReelView>
 
     if (oldWidget.post.id != widget.post.id) {
       _isCaptionExpanded = false;
-      _likeController.initializePost(_post.id, _post.likeCount);
-      _commentController.initializePost(_post.id, _post.commentCount);
-      _shareController.initializePost(_post.id, _post.shareCount);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _likeController.initializePost(_post.id, _post.likeCount);
+        _commentController.initializePost(_post.id, _post.commentCount);
+        _shareController.initializePost(_post.id, _post.shareCount);
+      });
     }
   }
 
@@ -285,38 +284,6 @@ class _ReelViewState extends State<_ReelView>
                                   ),
                                 ),
                               ),
-                              if (_isOwnPost)
-                                PopupMenuButton<_ReelPostAction>(
-                                  enabled: !_isPostActionLoading,
-                                  icon: const Icon(
-                                    Icons.more_vert,
-                                    color: Colors.white,
-                                  ),
-                                  onSelected: (action) {
-                                    if (_isPostActionLoading) {
-                                      return;
-                                    }
-
-                                    switch (action) {
-                                      case _ReelPostAction.edit:
-                                        _openEditPostDialog();
-                                        break;
-                                      case _ReelPostAction.delete:
-                                        _confirmDeletePost();
-                                        break;
-                                    }
-                                  },
-                                  itemBuilder: (context) => const [
-                                    PopupMenuItem<_ReelPostAction>(
-                                      value: _ReelPostAction.edit,
-                                      child: Text('Edit'),
-                                    ),
-                                    PopupMenuItem<_ReelPostAction>(
-                                      value: _ReelPostAction.delete,
-                                      child: Text('Delete'),
-                                    ),
-                                  ],
-                                ),
                             ],
                           ),
                           if (hasCaption) ...[
@@ -447,24 +414,25 @@ class _ReelViewState extends State<_ReelView>
         ),
         const SizedBox(height: 18),
         Obx(
-          () => _ActionButton(
-            hugeIcon: HugeIcons.strokeRoundedShare01,
-            color: _shareController.isSharing(_post.id)
-                ? Colors.lightBlueAccent
-                : Colors.white,
-            count: NumberFormatter.format(
-              _shareController.shareCount(_post.id),
-            ),
-            onTap: () {
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                useSafeArea: true,
-                backgroundColor: Colors.transparent,
-                builder: (_) => SharePostBottomSheet(post: _post),
-              );
-            },
-          ),
+          () {
+            final shareCount = _shareController.shareCount(_post.id);
+            return _ActionButton(
+              hugeIcon: HugeIcons.strokeRoundedShare01,
+              color: _shareController.isSharing(_post.id)
+                  ? Colors.lightBlueAccent
+                  : Colors.white,
+              count: shareCount > 0 ? NumberFormatter.format(shareCount) : null,
+              onTap: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  useSafeArea: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => SharePostBottomSheet(post: _post),
+                );
+              },
+            );
+          },
         ),
         const SizedBox(height: 18),
         Container(
@@ -492,207 +460,6 @@ class _ReelViewState extends State<_ReelView>
         ),
       ],
     );
-  }
-
-  Future<void> _openEditPostDialog() async {
-    final captionController = TextEditingController(text: _post.caption);
-    final locationController = TextEditingController(
-      text: _post.location ?? '',
-    );
-    bool isSaving = false;
-
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (dialogContext, setDialogState) {
-            return AlertDialog(
-              title: const Text('Edit post'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: captionController,
-                    maxLines: 3,
-                    decoration: const InputDecoration(labelText: 'Caption'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: locationController,
-                    decoration: const InputDecoration(
-                      labelText: 'Location (optional)',
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isSaving
-                      ? null
-                      : () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: isSaving
-                      ? null
-                      : () async {
-                          final nextCaption = captionController.text.trim();
-                          final rawLocation = locationController.text.trim();
-                          final nextLocation = rawLocation.isEmpty
-                              ? null
-                              : rawLocation;
-                          final hasChanges =
-                              nextCaption != _post.caption ||
-                              nextLocation != _post.location;
-
-                          if (!hasChanges) {
-                            Navigator.of(dialogContext).pop();
-                            return;
-                          }
-
-                          setDialogState(() {
-                            isSaving = true;
-                          });
-
-                          try {
-                            await _postRepo.editPost(
-                              postId: _post.id,
-                              caption: nextCaption,
-                              location: nextLocation,
-                            );
-
-                            if (!mounted) {
-                              return;
-                            }
-
-                            setState(() {
-                              _post = PostModel(
-                                id: _post.id,
-                                userId: _post.userId,
-                                mediaType: _post.mediaType,
-                                caption: nextCaption,
-                                mediaUrls: _post.mediaUrls,
-                                thumbnailUrls: _post.thumbnailUrls,
-                                likeCount: _post.likeCount,
-                                commentCount: _post.commentCount,
-                                shareCount: _post.shareCount,
-                                isDeleted: _post.isDeleted,
-                                location: nextLocation,
-                                createdAt: _post.createdAt,
-                                updatedAt: DateTime.now(),
-                                user: _post.user,
-                              );
-                            });
-
-                            if (dialogContext.mounted) {
-                              Navigator.of(dialogContext).pop();
-                            }
-
-                            Get.snackbar(
-                              'Success',
-                              'Post updated successfully',
-                              snackPosition: SnackPosition.BOTTOM,
-                            );
-                          } catch (_) {
-                            Get.snackbar(
-                              'Error',
-                              'Unable to update post',
-                              snackPosition: SnackPosition.BOTTOM,
-                            );
-                          } finally {
-                            if (dialogContext.mounted) {
-                              setDialogState(() {
-                                isSaving = false;
-                              });
-                            }
-                          }
-                        },
-                  child: isSaving
-                      ? const SizedBox(
-                          height: 16,
-                          width: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Save'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    // delay disposal until after the dialog's closing animation completes to
-    // avoid using a disposed controller inside the widget tree. This mirrors the
-    // pattern used elsewhere (see post_card.dart).
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      captionController.dispose();
-      locationController.dispose();
-    });
-  }
-
-  Future<void> _confirmDeletePost() async {
-    final shouldDelete =
-        await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) {
-            return AlertDialog(
-              title: const Text('Delete post?'),
-              content: const Text(
-                'This post will be removed from your profile and feed.',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(false),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(true),
-                  child: const Text('Delete'),
-                ),
-              ],
-            );
-          },
-        ) ??
-        false;
-
-    if (!shouldDelete || _isPostActionLoading) {
-      return;
-    }
-
-    setState(() {
-      _isPostActionLoading = true;
-    });
-
-    try {
-      await _postRepo.softDeletePost(_post.id);
-
-      if (!mounted) {
-        return;
-      }
-
-      Get.snackbar(
-        'Success',
-        'Post deleted',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-
-      if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
-    } catch (_) {
-      Get.snackbar(
-        'Error',
-        'Unable to delete post',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isPostActionLoading = false;
-        });
-      }
-    }
   }
 
   Widget _buildCaption(String caption) {

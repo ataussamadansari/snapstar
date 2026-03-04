@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
 
 class SkeletonBox extends StatelessWidget {
   const SkeletonBox({
@@ -28,6 +29,22 @@ class SkeletonBox extends StatelessWidget {
         color: base,
         borderRadius: BorderRadius.circular(radius),
       ),
+    );
+  }
+}
+
+class AppShimmer extends StatelessWidget {
+  const AppShimmer({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Shimmer.fromColors(
+      baseColor: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+      highlightColor: isDark ? Colors.grey.shade700 : Colors.grey.shade100,
+      child: child,
     );
   }
 }
@@ -132,16 +149,16 @@ class ProfileHeaderSkeleton extends StatelessWidget {
 }
 
 class GridSkeleton extends StatelessWidget {
-  const GridSkeleton({
-    super.key,
-    this.itemCount = 9,
-  });
+  const GridSkeleton({super.key, this.itemCount = 9});
 
   final int itemCount;
 
   @override
   Widget build(BuildContext context) {
     return GridView.builder(
+      shrinkWrap: true,
+      primary: false,
+      physics: const NeverScrollableScrollPhysics(),
       padding: EdgeInsets.zero,
       itemCount: itemCount,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -149,16 +166,14 @@ class GridSkeleton extends StatelessWidget {
         crossAxisSpacing: 2,
         mainAxisSpacing: 2,
       ),
-      itemBuilder: (_, __) => const SkeletonBox(height: double.infinity, radius: 0),
+      itemBuilder: (_, __) =>
+          const SkeletonBox(height: double.infinity, radius: 0),
     );
   }
 }
 
 class UserListSkeleton extends StatelessWidget {
-  const UserListSkeleton({
-    super.key,
-    this.itemCount = 8,
-  });
+  const UserListSkeleton({super.key, this.itemCount = 8});
 
   final int itemCount;
 
@@ -205,10 +220,7 @@ class SearchSkeleton extends StatelessWidget {
           padding: EdgeInsets.fromLTRB(16, 10, 16, 8),
           child: SkeletonBox(width: 110, height: 12),
         ),
-        SizedBox(
-          height: 520,
-          child: UserListSkeleton(itemCount: 7),
-        ),
+        SizedBox(height: 520, child: UserListSkeleton(itemCount: 7)),
       ],
     );
   }

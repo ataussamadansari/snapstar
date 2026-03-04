@@ -12,4 +12,11 @@ abstract class Routes {
   static const notifications = '/notifications';
   static const chatList = '/chat-list';
   static const chatDetail = '/chat-detail';
+  static const settings = '/settings';
+  static const settingsPrivacyPolicy = '/settings/privacy-policy';
+  static const settingsNotifications = '/settings/notifications';
+  static const settingsHelpFeedback = '/settings/help-feedback';
+  static const settingsAppUpdate = '/settings/app-update';
+  static const settingsAccessibility = '/settings/accessibility';
+  static const settingsContentStyle = '/settings/content-style';
 }

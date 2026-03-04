@@ -1,21 +1,22 @@
-import 'dart:ui';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hugeicons/hugeicons.dart';
 
+import '../core/utils/helpers.dart';
+import '../core/utils/date_time_extension.dart';
+import '../core/utils/number_formatter.dart';
+import '../core/utils/reels_navigation_helper.dart';
+import '../data/controllers/comment_controller.dart';
 import '../data/controllers/global_media_controller.dart';
 import '../data/controllers/like_controller.dart';
-import '../data/controllers/comment_controller.dart';
+import '../data/controllers/post_story_style_controller.dart';
 import '../data/controllers/share_controller.dart';
 import '../data/models/post_model.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/post_repository.dart';
-import '../core/utils/date_time_extension.dart';
-import '../core/utils/number_formatter.dart';
-import '../core/utils/reels_navigation_helper.dart';
-import '../routes/app_routes.dart';
 import '../modules/post_view/views/post_detail_screen.dart';
+import '../routes/app_routes.dart';
 import 'auto_play_video.dart';
 import 'comment_bottom_sheet.dart';
 import 'share_post_bottom_sheet.dart';
@@ -47,11 +48,15 @@ class _PostCardState extends State<PostCard> {
   final _commentController = Get.find<CommentController>();
   final _likeController = Get.find<LikeController>();
   final _shareController = Get.find<ShareController>();
+  final _styleController = Get.find<PostStoryStyleController>();
   final _postRepo = Get.find<PostRepository>();
   final _authRepo = Get.find<AuthRepository>();
 
   late PostModel _post;
+  late final PageController _mediaPageController;
+  int _currentMediaIndex = 0;
   bool _isPostActionLoading = false;
+  final Map<String, double> _resolvedAspectRatios = <String, double>{};
 
   bool get hasCaption => _post.caption.trim().isNotEmpty;
   bool get _isOwnPost => _authRepo.currentUserId == _post.userId;
@@ -60,13 +65,16 @@ class _PostCardState extends State<PostCard> {
   void initState() {
     super.initState();
     _post = widget.post;
+    _mediaPageController = PageController();
 
-    Future.microtask(() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _likeController.initializePost(_post.id, _post.likeCount);
-
       _commentController.initializePost(_post.id, _post.commentCount);
       _shareController.initializePost(_post.id, _post.shareCount);
     });
+
+    _primeInitialMediaRatios();
   }
 
   @override
@@ -75,201 +83,349 @@ class _PostCardState extends State<PostCard> {
     _post = widget.post;
 
     if (oldWidget.post.id != widget.post.id) {
-      _likeController.initializePost(_post.id, _post.likeCount);
-      _commentController.initializePost(_post.id, _post.commentCount);
-      _shareController.initializePost(_post.id, _post.shareCount);
+      _currentMediaIndex = 0;
+      if (_mediaPageController.hasClients) {
+        _mediaPageController.jumpToPage(0);
+      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _likeController.initializePost(_post.id, _post.likeCount);
+        _commentController.initializePost(_post.id, _post.commentCount);
+        _shareController.initializePost(_post.id, _post.shareCount);
+      });
     }
+
+    _primeInitialMediaRatios();
+  }
+
+  @override
+  void dispose() {
+    _mediaPageController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final height = MediaQuery.of(context).size.height * 0.55;
+    return Obx(() {
+      final cornerRadius = _styleController.postCornerRadius.value;
+      final cardBg = _styleController.postBackgroundColor;
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: Container(
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(cornerRadius),
+          ),
+          clipBehavior: Clip.antiAlias,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildGlassUser(),
-              ClipRRect(
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
+              _buildHeader(),
+              _buildMedia(),
+              _buildActionRow(),
+              _buildLikeSummary(),
+              if (hasCaption) _buildCaptionSection(),
+              _buildPostMeta(),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _buildHeader() {
+    final user = _post.user;
+    final userId = user?.id;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
+      child: Row(
+        children: [
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: userId == null
+                ? null
+                : () => Get.toNamed(Routes.userProfile, arguments: userId),
+            child: CircleAvatar(
+              radius: 18,
+              backgroundImage:
+                  (user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty)
+                  ? NetworkImage(user.avatarUrl!)
+                  : null,
+              child: (user?.avatarUrl == null || user!.avatarUrl!.isEmpty)
+                  ? const Icon(Icons.person, size: 20)
+                  : null,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: userId == null
+                  ? null
+                  : () => Get.toNamed(Routes.userProfile, arguments: userId),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    user?.username ?? user?.name ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if ((_post.location ?? '').trim().isNotEmpty)
+                    Text(
+                      _post.location!.trim(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                ],
+              ),
+            ),
+          ),
+          if (_isOwnPost)
+            PopupMenuButton<_PostCardAction>(
+              enabled: !_isPostActionLoading,
+              onSelected: (action) {
+                if (_isPostActionLoading) {
+                  return;
+                }
+
+                switch (action) {
+                  case _PostCardAction.edit:
+                    _openEditPostDialog();
+                    break;
+                  case _PostCardAction.delete:
+                    _confirmDeletePost();
+                    break;
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem<_PostCardAction>(
+                  value: _PostCardAction.edit,
+                  child: Text('Edit'),
                 ),
-                child: SizedBox(
-                  height: height,
-                  child: Stack(
-                    children: [
-                      /// MEDIA
-                      Positioned.fill(child: _buildMedia()),
+                PopupMenuItem<_PostCardAction>(
+                  value: _PostCardAction.delete,
+                  child: Text('Delete'),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
 
-                      /// GRADIENT OVERLAY
-                      Positioned.fill(
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.black38,
-                                Colors.transparent,
-                                Colors.black54,
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
+  Widget _buildMedia() {
+    if (_post.mediaUrls.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
-                      /// RIGHT ACTIONS
-                      Positioned(
-                        right: 0,
-                        bottom: height / 4,
-                        child: _buildRightActions(),
-                      ),
+    final aspectRatio = _currentAspectRatio();
 
-                      if (_post.mediaType == MediaType.video)
-                        Positioned(
-                          top: 15,
-                          right: 15,
-                          child: GestureDetector(
-                            onTap: _media.toggleMute,
-                            child: Obx(
-                              () => CircleAvatar(
-                                backgroundColor: Colors.black45,
-                                radius: 16,
-                                child: Icon(
-                                  _media.isMuted.value
-                                      ? Icons.volume_off
-                                      : Icons.volume_up,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
+    if (_post.mediaType == MediaType.video) {
+      return Stack(
+        children: [
+          AspectRatio(
+            aspectRatio: aspectRatio,
+            child: GestureDetector(
+              onTap: () {
+                if (widget.feedPosts != null && widget.feedPosts!.isNotEmpty) {
+                  final idx = widget.feedPosts!.indexWhere(
+                    (p) => p.id == _post.id,
+                  );
+                  Get.to(
+                    () => PostDetailScreen(
+                      posts: widget.feedPosts,
+                      initialIndex: idx < 0 ? 0 : idx,
+                    ),
+                  );
+                  return;
+                }
 
-                      /// BOTTOM GLASS USER INFO
-                      if (hasCaption)
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          child: _buildGlassCaption(),
-                        ),
-                    ],
+                if (widget.allowReelsNavigation) {
+                  ReelsNavigationHelper.openFromPost(_post);
+                } else {
+                  Get.to(() => PostDetailScreen(post: _post));
+                }
+              },
+              onDoubleTap: _handleLike,
+              child: Obx(
+                () => AutoPlayVideo(
+                  videoUrl: _post.mediaUrls.first,
+                  videoId: _post.id,
+                  isMuted: _media.isMuted.value,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 10,
+            top: 10,
+            child: GestureDetector(
+              onTap: _media.toggleMute,
+              child: Obx(
+                () => CircleAvatar(
+                  backgroundColor: Colors.black45,
+                  radius: 16,
+                  child: Icon(
+                    _media.isMuted.value ? Icons.volume_off : Icons.volume_up,
+                    color: Colors.white,
+                    size: 18,
                   ),
                 ),
               ),
-            ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (_post.mediaUrls.length == 1) {
+      final imageUrl = _post.mediaUrls.first;
+      _resolveAspectRatioFor(imageUrl);
+
+      return Stack(
+        children: [
+          AspectRatio(
+            aspectRatio: aspectRatio,
+            child: GestureDetector(
+              onDoubleTap: _handleLike,
+              child: CachedNetworkImage(imageUrl: imageUrl, fit: BoxFit.cover),
+            ),
+          ),
+          Positioned(
+            top: 10,
+            left: 10,
+            child: _buildZoomButton(onTap: () => _openImagePreview(imageUrl)),
+          ),
+        ],
+      );
+    }
+
+    return Stack(
+      children: [
+        AspectRatio(
+          aspectRatio: aspectRatio,
+          child: GestureDetector(
+            onDoubleTap: _handleLike,
+            child: PageView.builder(
+              controller: _mediaPageController,
+              itemCount: _post.mediaUrls.length,
+              onPageChanged: (index) {
+                if (!mounted) return;
+                setState(() {
+                  _currentMediaIndex = index;
+                });
+                _resolveAspectRatioFor(_post.mediaUrls[index]);
+              },
+              itemBuilder: (context, index) {
+                return CachedNetworkImage(
+                  imageUrl: _post.mediaUrls[index],
+                  fit: BoxFit.cover,
+                );
+              },
+            ),
+          ),
+        ),
+        Positioned(
+          top: 10,
+          right: 10,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.68),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '${_currentMediaIndex + 1}/${_post.mediaUrls.length}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 10,
+          left: 10,
+          child: _buildZoomButton(
+            onTap: () => _openImagePreview(_post.mediaUrls[_currentMediaIndex]),
+          ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 12,
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.38),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  _post.mediaUrls.length,
+                  (index) => AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    width: _currentMediaIndex == index ? 14 : 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: _currentMediaIndex == index
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: _currentMediaIndex == index
+                          ? const [
+                              BoxShadow(
+                                color: Colors.black45,
+                                blurRadius: 2,
+                                offset: Offset(0, 1),
+                              ),
+                            ]
+                          : null,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ],
     );
   }
 
-  // ================= MEDIA =================
-
-  Widget _buildMedia() {
-    if (_post.mediaUrls.isEmpty) return const SizedBox();
-
-    if (_post.mediaType == MediaType.video) {
-      return GestureDetector(
-        onTap: () {
-          if (widget.feedPosts != null && widget.feedPosts!.isNotEmpty) {
-            final idx = widget.feedPosts!.indexWhere((p) => p.id == _post.id);
-            Get.to(
-              () => PostDetailScreen(
-                posts: widget.feedPosts,
-                initialIndex: idx < 0 ? 0 : idx,
-              ),
-            );
-            return;
-          }
-
-          if (widget.allowReelsNavigation) {
-            ReelsNavigationHelper.openFromPost(_post);
-          } else {
-            Get.to(() => PostDetailScreen(post: _post));
-          }
-        },
-        onDoubleTap: _handleLike,
-        child: Obx(
-          () => AutoPlayVideo(
-            videoUrl: _post.mediaUrls.first,
-            videoId: _post.id,
-            isMuted: _media.isMuted.value,
-          ),
-        ),
-      );
-    }
-
-    return GestureDetector(
-      onDoubleTap: _handleLike,
-      child: CachedNetworkImage(
-        imageUrl: _post.mediaUrls.first,
-        fit: BoxFit.cover,
-      ),
-    );
-  }
-
-  void _handleLike() {
-    if (!_likeController.isLiked(_post.id)) {
-      _likeController.toggleLike(_post.id);
-    }
-    _media.triggerDoubleTap(_post.id);
-  }
-
-  // ================= RIGHT ACTIONS =================
-
-  Widget _buildRightActions() {
-    return Container(
-      padding: EdgeInsets.all(8.0),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
-        border: Border.fromBorderSide(
-          BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-        ),
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(12.0),
-          bottomLeft: Radius.circular(12.0),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.max,
+  Widget _buildActionRow() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+      child: Row(
         children: [
-          /// LIKE
           Obx(
-            () => _glassAction(
-              isM: true,
-              mIcon: _likeController.isLiked(_post.id)
-                  ? Icons.favorite
-                  : Icons.favorite_border,
-              icon: HugeIcons.strokeRoundedFavourite,
-              count: NumberFormatter.format(
-                _likeController.likeCount(_post.id),
-              ),
-              color: _likeController.isLiked(_post.id)
-                  ? Colors.red
-                  : Colors.white,
+            () => _buildActionButton(
+              icon: _likeController.isLiked(_post.id) ? Icons.favorite : null,
+              hugeIcon: _likeController.isLiked(_post.id)
+                  ? null
+                  : HugeIcons.strokeRoundedFavourite,
+              color: _likeController.isLiked(_post.id) ? Colors.red : null,
+              count: _likeController.likeCount(_post.id),
               onTap: () => _likeController.toggleLike(_post.id),
             ),
           ),
-
-          const SizedBox(height: 18),
-
-          /// COMMENT
           Obx(
-            () => _glassAction(
-              isM: false,
-              // icon: Icons.chat_bubble_outline,
-              icon: HugeIcons.strokeRoundedComment03,
-              count: NumberFormatter.format(
-                _commentController.commentCount(_post.id),
-              ),
+            () => _buildActionButton(
+              hugeIcon: HugeIcons.strokeRoundedComment03,
+              count: _commentController.commentCount(_post.id),
               onTap: () {
                 showModalBottomSheet(
                   context: context,
@@ -281,21 +437,13 @@ class _PostCardState extends State<PostCard> {
               },
             ),
           ),
-
-          const SizedBox(height: 18),
-
-          /// SHARE
           Obx(
-            () => _glassAction(
-              isM: false,
-              // icon: Icons.send_outlined,
-              icon: HugeIcons.strokeRoundedShare01,
-              count: NumberFormatter.format(
-                _shareController.shareCount(_post.id),
-              ),
+            () => _buildActionButton(
+              hugeIcon: HugeIcons.strokeRoundedShare01,
               color: _shareController.isSharing(_post.id)
                   ? Colors.lightBlueAccent
-                  : Colors.white,
+                  : null,
+              count: _shareController.shareCount(_post.id),
               onTap: () {
                 showModalBottomSheet(
                   context: context,
@@ -307,213 +455,273 @@ class _PostCardState extends State<PostCard> {
               },
             ),
           ),
+          const Spacer(),
         ],
       ),
     );
   }
 
-  Widget _glassAction({
-    required bool isM,
-    IconData? mIcon,
-    required List<List<dynamic>> icon,
-    required String count,
-    Color color = Colors.white,
+  Widget _buildActionButton({
+    IconData? icon,
+    List<List<dynamic>>? hugeIcon,
+    Color? color,
+    int count = 0,
     VoidCallback? onTap,
   }) {
-    return Column(
-      children: [
-        GestureDetector(
-          onTap: onTap,
-          // child: Icon(icon, color: color, size: 28),
-          child: isM
-              ? Icon(mIcon, color: color, size: 28)
-              : HugeIcon(icon: icon, color: color, size: 28),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          count,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
-    );
-  }
+    final theme = Theme.of(context);
+    final iconSize = _styleController.postActionIconSize.value;
+    final buttonRadius = (iconSize / 2) + 12;
+    final hasCount = count > 0;
 
-  // ================= GLASS CAPTION =================
-
-  Widget _buildGlassUser() {
-    final user = _post.user;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final userId = user?.id;
-
-    return ClipRRect(
-      borderRadius: BorderRadius.only(
-        topRight: Radius.circular(20),
-        topLeft: Radius.circular(20),
-      ),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: isDark
-                ? Colors.white10.withValues(alpha: 0.05)
-                : Colors.black12.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.only(
-              topRight: Radius.circular(20),
-              topLeft: Radius.circular(20),
-            ),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: userId == null
-                      ? null
-                      : () =>
-                            Get.toNamed(Routes.userProfile, arguments: userId),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundImage:
-                            (user?.avatarUrl != null &&
-                                user!.avatarUrl!.isNotEmpty)
-                            ? NetworkImage(user.avatarUrl!)
-                            : null,
-                        child:
-                            (user?.avatarUrl == null ||
-                                user!.avatarUrl!.isEmpty)
-                            ? const Icon(Icons.person, size: 32)
-                            : null,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              user?.name.capitalizeFirst ?? '',
-                              style: TextStyle(
-                                color: isDark ? Colors.white : Colors.black,
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              '@${user?.username} • ${_post.createdAt.timeAgo}',
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.labelSmall,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(buttonRadius),
+      child: Padding(
+        padding: const EdgeInsets.only(right: 14, top: 4, bottom: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            hugeIcon != null
+                ? HugeIcon(
+                    icon: hugeIcon,
+                    size: iconSize,
+                    color: color ?? theme.iconTheme.color ?? Colors.black,
+                  )
+                : Icon(icon, size: iconSize, color: color),
+            if (hasCount) ...[
+              const SizedBox(width: 4),
+              Text(
+                NumberFormatter.format(count),
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              if (_isOwnPost)
-                PopupMenuButton<_PostCardAction>(
-                  enabled: !_isPostActionLoading,
-                  icon: Icon(
-                    Icons.more_vert,
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
-                  onSelected: (action) {
-                    if (_isPostActionLoading) {
-                      return;
-                    }
-
-                    switch (action) {
-                      case _PostCardAction.edit:
-                        _openEditPostDialog();
-                        break;
-                      case _PostCardAction.delete:
-                        _confirmDeletePost();
-                        break;
-                    }
-                  },
-                  itemBuilder: (context) => const [
-                    PopupMenuItem<_PostCardAction>(
-                      value: _PostCardAction.edit,
-                      child: Text('Edit'),
-                    ),
-                    PopupMenuItem<_PostCardAction>(
-                      value: _PostCardAction.delete,
-                      child: Text('Delete'),
-                    ),
-                  ],
-                ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildZoomButton({required VoidCallback onTap}) {
+    return Material(
+      color: Colors.black.withValues(alpha: 0.68),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: const Padding(
+            padding: EdgeInsets.all(6),
+            child: Icon(
+              Icons.zoom_out_map_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildGlassCaption() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget _buildLikeSummary() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Obx(() {
+        final likeCount = _likeController.likeCount(_post.id);
+        if (likeCount <= 0) {
+          return const SizedBox.shrink();
+        }
+        return Text(
+          '${NumberFormatter.format(likeCount)} likes',
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+        );
+      }),
+    );
+  }
 
-    return ClipRRect(
-      borderRadius: BorderRadius.only(
-        topRight: Radius.circular(20),
-        topLeft: Radius.circular(20),
-      ),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: isDark
-                ? Colors.white10.withValues(alpha: 0.05)
-                : Colors.black12.withValues(alpha: 0.05),
-            // color: Colors.white.withValues(alpha: 0.05),
-            // borderRadius: BorderRadius.circular(20),
-            borderRadius: BorderRadius.only(
-              topRight: Radius.circular(20),
-              topLeft: Radius.circular(20),
+  Widget _buildCaptionSection() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 2),
+      child: RichText(
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        text: TextSpan(
+          style: DefaultTextStyle.of(context).style.copyWith(fontSize: 13),
+          children: [
+            TextSpan(
+              text: '${_post.user?.username ?? ''} ',
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-          ),
-          child: RichText(
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            text: TextSpan(
-              style: const TextStyle(fontSize: 13),
-              children: _buildCaptionSpans(_post.caption),
-            ),
-          ),
+            ..._buildCaptionSpans(_post.caption),
+          ],
         ),
       ),
     );
+  }
+
+  Widget _buildPostMeta() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 3, 12, 0),
+      child: Obx(
+        () => Text(
+          '${NumberFormatter.format(_commentController.commentCount(_post.id))} comments • ${_post.createdAt.timeAgo}',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ),
+    );
+  }
+
+  void _handleLike() {
+    if (!_likeController.isLiked(_post.id)) {
+      _likeController.toggleLike(_post.id);
+    }
+    _media.triggerDoubleTap(_post.id);
+  }
+
+  void _openImagePreview(String imageUrl) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black,
+      builder: (dialogContext) {
+        return Scaffold(
+          backgroundColor: Colors.black,
+          body: SafeArea(
+            child: Stack(
+              children: [
+                Center(
+                  child: InteractiveViewer(
+                    minScale: 1,
+                    maxScale: 5,
+                    child: CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.68),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.22),
+                      ),
+                    ),
+                    child: IconButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      icon: const Icon(Icons.close, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _primeInitialMediaRatios() {
+    if (_post.mediaType == MediaType.video || _post.mediaUrls.isEmpty) {
+      return;
+    }
+
+    final upto = _post.mediaUrls.length > 2 ? 2 : _post.mediaUrls.length;
+    for (var i = 0; i < upto; i++) {
+      _resolveAspectRatioFor(_post.mediaUrls[i]);
+    }
+  }
+
+  double _currentAspectRatio() {
+    if (_post.mediaType == MediaType.video) {
+      return 4 / 5;
+    }
+
+    final mediaUrl = _currentMediaUrl();
+    if (mediaUrl == null) {
+      return 1;
+    }
+
+    return _resolvedAspectRatios[mediaUrl] ?? 1;
+  }
+
+  String? _currentMediaUrl() {
+    if (_post.mediaUrls.isEmpty) {
+      return null;
+    }
+
+    final safeIndex = _currentMediaIndex.clamp(0, _post.mediaUrls.length - 1);
+    return _post.mediaUrls[safeIndex];
+  }
+
+  void _resolveAspectRatioFor(String mediaUrl) {
+    if (_post.mediaType == MediaType.video ||
+        _resolvedAspectRatios.containsKey(mediaUrl)) {
+      return;
+    }
+
+    final imageProvider = CachedNetworkImageProvider(mediaUrl);
+    final stream = imageProvider.resolve(const ImageConfiguration());
+
+    late final ImageStreamListener listener;
+    listener = ImageStreamListener(
+      (ImageInfo image, bool synchronousCall) {
+        final width = image.image.width.toDouble();
+        final height = image.image.height.toDouble();
+        if (width <= 0 || height <= 0) {
+          stream.removeListener(listener);
+          return;
+        }
+
+        final ratio = (width / height).clamp(0.8, 1.91);
+        if (mounted) {
+          setState(() {
+            _resolvedAspectRatios[mediaUrl] = ratio;
+          });
+        } else {
+          _resolvedAspectRatios[mediaUrl] = ratio;
+        }
+
+        stream.removeListener(listener);
+      },
+      onError: (dynamic _, StackTrace? __) {
+        _resolvedAspectRatios[mediaUrl] = 1;
+        stream.removeListener(listener);
+      },
+    );
+
+    stream.addListener(listener);
   }
 
   List<TextSpan> _buildCaptionSpans(String caption) {
-    final words = caption.split(" ");
+    final words = caption.split(' ');
 
     return words.map((word) {
-      if (word.startsWith("#")) {
+      if (word.startsWith('#')) {
         return TextSpan(
-          text: "$word ",
+          text: '$word ',
           style: const TextStyle(
             color: Colors.lightBlueAccent,
             fontWeight: FontWeight.w600,
           ),
         );
-      } else if (word.startsWith("@")) {
+      } else if (word.startsWith('@')) {
         return TextSpan(
-          text: "$word ",
+          text: '$word ',
           style: const TextStyle(
             color: Colors.purpleAccent,
             fontWeight: FontWeight.w600,
           ),
         );
       } else {
-        return TextSpan(text: "$word ");
+        return TextSpan(text: '$word ');
       }
     }).toList();
   }
@@ -613,16 +821,16 @@ class _PostCardState extends State<PostCard> {
                                 Navigator.of(dialogContext).pop();
                               }
 
-                              Get.snackbar(
-                                'Success',
-                                'Post updated successfully',
-                                snackPosition: SnackPosition.BOTTOM,
+                              AppHelpers.showSnackBar(
+                                title: 'Success',
+                                message: 'Post updated successfully',
+                                isError: false,
                               );
                             } catch (error) {
-                              Get.snackbar(
-                                'Error',
-                                'Unable to update post',
-                                snackPosition: SnackPosition.BOTTOM,
+                              AppHelpers.showSnackBar(
+                                title: 'Error',
+                                message: 'Unable to update post',
+                                isError: true,
                               );
                             } finally {
                               if (dialogContext.mounted) {
@@ -647,7 +855,6 @@ class _PostCardState extends State<PostCard> {
         },
       );
     } finally {
-      // Defer disposal to after frame completes to avoid rebuild issues
       WidgetsBinding.instance.addPostFrameCallback((_) {
         captionController.dispose();
         locationController.dispose();
@@ -695,20 +902,20 @@ class _PostCardState extends State<PostCard> {
         return;
       }
 
-      Get.snackbar(
-        'Success',
-        'Post deleted',
-        snackPosition: SnackPosition.BOTTOM,
+      AppHelpers.showSnackBar(
+        title: 'Success',
+        message: 'Post deleted',
+        isError: false,
       );
 
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       }
     } catch (error) {
-      Get.snackbar(
-        'Error',
-        'Unable to delete post',
-        snackPosition: SnackPosition.BOTTOM,
+      AppHelpers.showSnackBar(
+        title: 'Error',
+        message: 'Unable to delete post',
+        isError: true,
       );
     } finally {
       if (mounted) {

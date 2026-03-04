@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:snapstar_app/app/core/utils/helpers.dart';
 import '../../../data/models/post_model.dart';
 import '../../../data/repositories/chat_repository.dart';
 import '../../../global_widgets/loading_skeleton.dart';
@@ -8,7 +9,6 @@ import '../../../routes/app_routes.dart';
 import '../../subscribe_list_view/controllers/subscriber_list_controller.dart';
 import '../controllers/user_profile_controller.dart';
 import '../../post_view/views/post_detail_screen.dart';
-import 'package:snapstar_app/app/core/utils/reels_navigation_helper.dart';
 import 'package:snapstar_app/app/modules/profile_view/views/widgets/post_grid_item.dart';
 
 class UserProfileScreen extends GetView<UserProfileController> {
@@ -158,10 +158,10 @@ class UserProfileScreen extends GetView<UserProfileController> {
                                           arguments: conversationId,
                                         );
                                       } catch (e) {
-                                        Get.snackbar(
-                                          'Error',
-                                          'Failed to open chat',
-                                          snackPosition: SnackPosition.BOTTOM,
+                                        AppHelpers.showSnackBar(
+                                          title: 'Error',
+                                          message: 'Failed to open chat',
+                                          isError: true,
                                         );
                                       }
                                     },
@@ -244,15 +244,12 @@ class UserProfileScreen extends GetView<UserProfileController> {
           return PostGridItem(
             post: post,
             onTap: () {
-              if (post.mediaType == MediaType.video) {
-                ReelsNavigationHelper.openFromPost(
-                  post,
-                  scopedPosts: controller.videoPosts.toList(),
-                  scopedUserId: post.userId,
-                );
-              } else {
-                Get.to(() => PostDetailScreen(post: post));
-              }
+              Get.to(
+                () => PostDetailScreen(
+                  posts: posts,
+                  initialIndex: index,
+                ),
+              );
             },
           );
         },
@@ -287,3 +284,4 @@ class _UserProfileTabDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(_UserProfileTabDelegate oldDelegate) => false;
 }
+

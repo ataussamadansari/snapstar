@@ -26,8 +26,10 @@ class SearchsController extends GetxController {
   final RxString query = ''.obs;
   final RxList<UserModel> userResults = <UserModel>[].obs;
   final RxList<PostModel> postResults = <PostModel>[].obs;
+  final RxList<Map<String, dynamic>> hashtagResults = <Map<String, dynamic>>[].obs;
   final RxList<UserModel> suggestedUsers = <UserModel>[].obs;
   final RxList<PostModel> suggestedPosts = <PostModel>[].obs;
+  final RxList<Map<String, dynamic>> suggestedHashtags = <Map<String, dynamic>>[].obs;
 
   final RxBool isLoadingSuggestions = false.obs;
   final RxBool isSearching = false.obs;
@@ -60,6 +62,7 @@ class SearchsController extends GetxController {
       errorMessage.value = null;
       userResults.clear();
       postResults.clear();
+      hashtagResults.clear();
     }
   }
 
@@ -81,14 +84,22 @@ class SearchsController extends GetxController {
           limit: 60,
           offset: 0,
         ),
+        _postRepo.searchHashtags(
+          query: '',
+          limit: 10,
+        ),
       ]);
 
       final users = results[0] as List<UserModel>;
       final posts = List<PostModel>.from(results[1] as List<PostModel>)
-        ..shuffle();
+          ..shuffle();
+      final hashtags = List<Map<String, dynamic>>.from(
+        results[2] as List<Map<String, dynamic>>,
+      );
 
       suggestedUsers.assignAll(users);
       suggestedPosts.assignAll(posts);
+      suggestedHashtags.assignAll(hashtags);
     } catch (error, stackTrace) {
       debugPrint('SearchsController.loadSuggestions error: $error');
       debugPrint('SearchsController.loadSuggestions stack: $stackTrace');
@@ -113,6 +124,7 @@ class SearchsController extends GetxController {
     if (searchQuery.isEmpty) {
       userResults.clear();
       postResults.clear();
+      hashtagResults.clear();
       isSearching.value = false;
       return;
     }
@@ -135,6 +147,10 @@ class SearchsController extends GetxController {
           limit: 30,
           offset: 0,
         ),
+        _postRepo.searchHashtags(
+          query: searchQuery,
+          limit: 12,
+        ),
       ]);
 
       if (runId != _searchRunId) {
@@ -143,6 +159,9 @@ class SearchsController extends GetxController {
 
       userResults.assignAll(results[0] as List<UserModel>);
       postResults.assignAll(results[1] as List<PostModel>);
+      hashtagResults.assignAll(
+        List<Map<String, dynamic>>.from(results[2] as List<Map<String, dynamic>>),
+      );
     } catch (error, stackTrace) {
       if (runId != _searchRunId) {
         return;
@@ -154,6 +173,7 @@ class SearchsController extends GetxController {
       errorMessage.value = 'Search failed, please try again';
       userResults.clear();
       postResults.clear();
+      hashtagResults.clear();
     } finally {
       if (runId == _searchRunId) {
         isSearching.value = false;
@@ -183,6 +203,7 @@ class SearchsController extends GetxController {
     errorMessage.value = null;
     userResults.clear();
     postResults.clear();
+    hashtagResults.clear();
   }
 
   @override

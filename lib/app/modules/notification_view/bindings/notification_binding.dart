@@ -2,6 +2,8 @@ import 'package:get/get.dart';
 
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/notification_repository.dart';
+import '../../../data/repositories/post_repository.dart';
+import '../../../data/services/local_cache_service.dart';
 import '../controllers/notification_controller.dart';
 
 class NotificationBinding extends Bindings {
@@ -11,6 +13,8 @@ class NotificationBinding extends Bindings {
       () => NotificationController(
         Get.find<NotificationRepository>(),
         Get.find<AuthRepository>(),
+        Get.find<LocalCacheService>(),
+        Get.find<PostRepository>(),
       ),
     );
   }

@@ -69,10 +69,12 @@ class SearchScreen extends GetView<SearchsController> {
     }
 
     if (controller.hasQuery) {
-      if (controller.userResults.isEmpty && controller.postResults.isEmpty) {
+      if (controller.userResults.isEmpty &&
+          controller.postResults.isEmpty &&
+          controller.hashtagResults.isEmpty) {
         return const _StateMessage(
           icon: Icons.search_off,
-          title: 'No users or posts found',
+          title: 'No users, posts or hashtags found',
           subtitle: 'Try a different keyword',
         );
       }
@@ -94,6 +96,12 @@ class SearchScreen extends GetView<SearchsController> {
                 (post) => _PostListItem(post: post),
               ),
             ],
+            if (controller.hashtagResults.isNotEmpty) ...[
+              const _SectionTitle(title: 'Hashtags'),
+              ...controller.hashtagResults.map(
+                (tag) => _HashtagListItem(tag: tag),
+              ),
+            ],
             const SizedBox(height: 16),
           ],
         ),
@@ -105,7 +113,8 @@ class SearchScreen extends GetView<SearchsController> {
     }
 
     if (controller.suggestedUsers.isEmpty &&
-        controller.suggestedPosts.isEmpty) {
+        controller.suggestedPosts.isEmpty &&
+        controller.suggestedHashtags.isEmpty) {
       return const _StateMessage(
         icon: Icons.group_outlined,
         title: 'No suggestions available',
@@ -150,6 +159,18 @@ class SearchScreen extends GetView<SearchsController> {
                   ),
                   childCount: controller.suggestedPosts.length,
                 ),
+              ),
+            ),
+          if (controller.suggestedHashtags.isNotEmpty)
+            const SliverToBoxAdapter(
+              child: _SectionTitle(title: 'Trending hashtags'),
+            ),
+          if (controller.suggestedHashtags.isNotEmpty)
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) =>
+                    _HashtagListItem(tag: controller.suggestedHashtags[index]),
+                childCount: controller.suggestedHashtags.length,
               ),
             ),
         ],
@@ -253,11 +274,11 @@ class _PostListItem extends StatelessWidget {
 
     return InkWell(
       onTap: () {
-        if (post.mediaType == MediaType.video) {
-          ReelsNavigationHelper.openFromPost(post);
-        } else {
-          Get.to(() => PostDetailScreen(post: post));
-        }
+        final ctrl = Get.find<SearchsController>();
+        _openPostWithRelatedContext(
+          selected: post,
+          source: ctrl.postResults.toList(),
+        );
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -332,11 +353,11 @@ class _SuggestedPostTile extends StatelessWidget {
 
     return InkWell(
       onTap: () {
-        if (isVideo) {
-          ReelsNavigationHelper.openFromPost(post);
-        } else {
-          Get.to(() => PostDetailScreen(post: post));
-        }
+        final ctrl = Get.find<SearchsController>();
+        _openPostWithRelatedContext(
+          selected: post,
+          source: ctrl.suggestedPosts.toList(),
+        );
       },
       child: Stack(
         fit: StackFit.expand,
@@ -370,6 +391,158 @@ class _SuggestedPostTile extends StatelessWidget {
       ),
     );
   }
+}
+
+class _HashtagListItem extends StatelessWidget {
+  const _HashtagListItem({required this.tag});
+
+  final Map<String, dynamic> tag;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = (tag['tag']?.toString() ?? '').trim();
+    final postCount = (tag['post_count'] as num?)?.toInt() ?? 0;
+    final usageCount = (tag['usage_count'] as num?)?.toInt() ?? 0;
+    if (value.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return InkWell(
+      onTap: () {
+        final ctrl = Get.find<SearchsController>();
+        ctrl.queryCtrl.text = '#$value';
+        ctrl.onQueryChanged('#$value');
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: Colors.grey.shade200,
+              child: Text(
+                '#',
+                style: TextStyle(
+                  color: Colors.grey.shade700,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '#$value',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$postCount posts • $usageCount uses',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+void _openPostWithRelatedContext({
+  required PostModel selected,
+  required List<PostModel> source,
+}) {
+  final related = _buildRelatedPosts(
+    selected: selected,
+    source: source,
+  );
+
+  if (selected.mediaType == MediaType.video) {
+    ReelsNavigationHelper.openFromPost(
+      selected,
+      scopedPosts: related,
+      scopedUserId: selected.userId,
+    );
+    return;
+  }
+
+  final initialIndex = related.indexWhere((p) => p.id == selected.id);
+  Get.to(
+    () => PostDetailScreen(
+      posts: related,
+      initialIndex: initialIndex < 0 ? 0 : initialIndex,
+    ),
+  );
+}
+
+List<PostModel> _buildRelatedPosts({
+  required PostModel selected,
+  required List<PostModel> source,
+}) {
+  final seedTags = _extractTags(selected.caption);
+  final seedWords = _extractWords(selected.caption);
+
+  final candidates = source
+      .where((p) => !p.isDeleted)
+      .toList();
+
+  final dedup = <String, PostModel>{};
+  for (final p in candidates) {
+    dedup[p.id] = p;
+  }
+
+  final sorted = dedup.values.toList()
+    ..sort((a, b) {
+      if (a.id == selected.id) return -1;
+      if (b.id == selected.id) return 1;
+
+      final sa = _relatedScore(a, selected, seedTags, seedWords);
+      final sb = _relatedScore(b, selected, seedTags, seedWords);
+      if (sb != sa) return sb.compareTo(sa);
+      return b.createdAt.compareTo(a.createdAt);
+    });
+
+  return sorted;
+}
+
+int _relatedScore(
+  PostModel item,
+  PostModel seed,
+  Set<String> seedTags,
+  Set<String> seedWords,
+) {
+  var score = 0;
+
+  if (item.userId == seed.userId) score += 40;
+  if (item.mediaType == seed.mediaType) score += 20;
+
+  final itemTags = _extractTags(item.caption);
+  final itemWords = _extractWords(item.caption);
+
+  score += itemTags.intersection(seedTags).length * 15;
+  score += itemWords.intersection(seedWords).length * 4;
+
+  return score;
+}
+
+Set<String> _extractTags(String caption) {
+  final matches = RegExp(r'#([a-zA-Z0-9_]+)').allMatches(caption.toLowerCase());
+  return matches.map((m) => m.group(1)!).toSet();
+}
+
+Set<String> _extractWords(String caption) {
+  return caption
+      .toLowerCase()
+      .split(RegExp(r'[^a-z0-9_]+'))
+      .where((w) => w.length >= 3 && !w.startsWith('#'))
+      .toSet();
 }
 
 class _StateMessage extends StatelessWidget {

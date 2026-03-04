@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:snapstar_app/app/core/utils/helpers.dart';
+import 'package:snapstar_app/app/global_widgets/loading_skeleton.dart';
 import '../data/models/conversation_model.dart';
 import '../data/models/post_model.dart';
 import '../data/repositories/chat_repository.dart';
@@ -40,7 +42,11 @@ class _SharePostBottomSheetState extends State<SharePostBottomSheet> {
       setState(() {
         _isLoading = false;
       });
-      Get.snackbar('Error', 'Failed to load conversations');
+      AppHelpers.showSnackBar(
+        title: 'Error',
+        message: 'Failed to load conversations',
+        isError: true,
+      );
     }
   }
 
@@ -66,13 +72,18 @@ class _SharePostBottomSheetState extends State<SharePostBottomSheet> {
       }
 
       Get.back();
-      Get.snackbar(
-        'Success',
-        'Post shared to ${_selectedConversations.length} conversation(s)',
-        snackPosition: SnackPosition.BOTTOM,
+      AppHelpers.showSnackBar(
+        title: 'Success',
+        message:
+            'Post shared to ${_selectedConversations.length} conversation(s)',
+        isError: false,
       );
     } catch (e) {
-      Get.snackbar('Error', 'Failed to share post');
+      AppHelpers.showSnackBar(
+        title: 'Error',
+        message: 'Failed to share post',
+        isError: true,
+      );
     } finally {
       setState(() {
         _isSending = false;
@@ -82,113 +93,123 @@ class _SharePostBottomSheetState extends State<SharePostBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 12),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                const Text(
-                  'Share to',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                if (_selectedConversations.isNotEmpty)
-                  TextButton(
-                    onPressed: _isSending ? null : _sharePost,
-                    child: _isSending
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Send'),
-                  ),
-              ],
-            ),
-          ),
-          const Divider(),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _conversations.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('No conversations yet'),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () {
-                            Get.back();
-                            Get.toNamed(Routes.chatList);
-                          },
-                          child: const Text('Start a conversation'),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: _conversations.length,
-                    itemBuilder: (context, index) {
-                      final conversation = _conversations[index];
-                      final isSelected = _selectedConversations.contains(
-                        conversation.id,
-                      );
+    final halfHeight = MediaQuery.of(context).size.height * 0.6;
 
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundImage:
-                              conversation.otherUser?.avatarUrl != null &&
-                                  conversation.otherUser!.avatarUrl!.isNotEmpty
-                              ? CachedNetworkImageProvider(
-                                  conversation.otherUser!.avatarUrl!,
-                                )
-                              : null,
-                          child: conversation.otherUser?.avatarUrl == null
-                              ? const Icon(Icons.person)
-                              : null,
-                        ),
-                        title: Text(
-                          conversation.otherUser?.name ?? 'Unknown',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        subtitle: Text(
-                          '@${conversation.otherUser?.username ?? 'user'}',
-                        ),
-                        trailing: isSelected
-                            ? const Icon(Icons.check_circle, color: Colors.blue)
-                            : const Icon(Icons.circle_outlined),
-                        onTap: () {
-                          setState(() {
-                            if (isSelected) {
-                              _selectedConversations.remove(conversation.id);
-                            } else {
-                              _selectedConversations.add(conversation.id);
-                            }
-                          });
-                        },
-                      );
-                    },
+    return SizedBox(
+      height: halfHeight,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  const Text(
+                    'Share to',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
-          ),
-        ],
+                  const Spacer(),
+                  if (_selectedConversations.isNotEmpty)
+                    TextButton(
+                      onPressed: _isSending ? null : _sharePost,
+                      child: _isSending
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Send'),
+                    ),
+                ],
+              ),
+            ),
+
+            Expanded(
+              child: _isLoading
+                  ? const AppShimmer(child: UserListSkeleton(itemCount: 6))
+                  : _conversations.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text('No conversations yet'),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () {
+                              Get.back();
+                              Get.toNamed(Routes.chatList);
+                            },
+                            child: const Text('Start a conversation'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: _conversations.length,
+                      itemBuilder: (context, index) {
+                        final conversation = _conversations[index];
+                        final isSelected = _selectedConversations.contains(
+                          conversation.id,
+                        );
+
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundImage:
+                                conversation.otherUser?.avatarUrl != null &&
+                                    conversation
+                                        .otherUser!
+                                        .avatarUrl!
+                                        .isNotEmpty
+                                ? CachedNetworkImageProvider(
+                                    conversation.otherUser!.avatarUrl!,
+                                  )
+                                : null,
+                            child: conversation.otherUser?.avatarUrl == null
+                                ? const Icon(Icons.person)
+                                : null,
+                          ),
+                          title: Text(
+                            conversation.otherUser?.name ?? 'Unknown',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            '@${conversation.otherUser?.username ?? 'user'}',
+                          ),
+                          trailing: isSelected
+                              ? const Icon(
+                                  Icons.check_circle,
+                                  color: Colors.blue,
+                                )
+                              : const Icon(Icons.circle_outlined),
+                          onTap: () {
+                            setState(() {
+                              if (isSelected) {
+                                _selectedConversations.remove(conversation.id);
+                              } else {
+                                _selectedConversations.add(conversation.id);
+                              }
+                            });
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/utils/cursor_page.dart';
 import '../providers/notification_provider.dart';
 
 class NotificationService {
@@ -12,9 +13,9 @@ class NotificationService {
   final NotificationProvider _provider;
   final SupabaseClient _client;
 
-  RealtimeChannel? _channel;
   final Map<String, Set<VoidCallback>> _userListeners =
       <String, Set<VoidCallback>>{};
+  final Map<String, RealtimeChannel> _userChannels = <String, RealtimeChannel>{};
 
   Future<void> createNotification(Map<String, dynamic> data) async {
     try {
@@ -40,6 +41,26 @@ class NotificationService {
     } catch (error, stackTrace) {
       debugPrint('NotificationService.fetchNotifications error: $error');
       debugPrint('NotificationService.fetchNotifications stack: $stackTrace');
+      rethrow;
+    }
+  }
+
+  Future<CursorPage<Map<String, dynamic>>> fetchNotificationsByCursor({
+    required String userId,
+    int limit = 20,
+    DateTime? cursorCreatedAt,
+    String? cursorId,
+  }) async {
+    try {
+      return await _provider.fetchNotificationsByCursor(
+        userId: userId,
+        limit: limit,
+        cursorCreatedAt: cursorCreatedAt,
+        cursorId: cursorId,
+      );
+    } catch (error, stackTrace) {
+      debugPrint('NotificationService.fetchNotificationsByCursor error: $error');
+      debugPrint('NotificationService.fetchNotificationsByCursor stack: $stackTrace');
       rethrow;
     }
   }
@@ -71,7 +92,7 @@ class NotificationService {
     _userListeners.putIfAbsent(userId, () => <VoidCallback>{});
     _userListeners[userId]!.add(onChanged);
 
-    _ensureChannel();
+    _ensureChannelForUser(userId);
 
     return () {
       final listeners = _userListeners[userId];
@@ -84,58 +105,62 @@ class NotificationService {
         _userListeners.remove(userId);
       }
 
-      _disposeChannelIfIdle();
+      _disposeChannelIfIdle(userId);
     };
   }
 
-  void _ensureChannel() {
-    if (_channel != null) {
+  void _ensureChannelForUser(String userId) {
+    if (_userChannels.containsKey(userId)) {
       return;
     }
 
-    _channel = _client.channel('notifications-realtime-channel');
+    final channel = _client.channel('notifications-realtime-$userId');
+    _userChannels[userId] = channel;
 
-    _channel!
+    channel
       ..onPostgresChanges(
         event: PostgresChangeEvent.all,
         schema: 'public',
         table: 'notifications',
-        callback: _handleRealtime,
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'user_id',
+          value: userId,
+        ),
+        callback: (payload) => _handleRealtime(userId, payload),
       )
       ..subscribe();
   }
 
-  void _handleRealtime(PostgresChangePayload payload) {
-    final userIds = <String>{};
-
-    final newUserId = payload.newRecord['user_id']?.toString();
-    final oldUserId = payload.oldRecord['user_id']?.toString();
-
-    if (newUserId != null && newUserId.isNotEmpty) {
-      userIds.add(newUserId);
-    }
-    if (oldUserId != null && oldUserId.isNotEmpty) {
-      userIds.add(oldUserId);
-    }
-
-    for (final userId in userIds) {
-      final listeners = _userListeners[userId];
-      if (listeners == null || listeners.isEmpty) {
-        continue;
-      }
-
-      for (final listener in listeners.toList()) {
-        listener();
-      }
-    }
-  }
-
-  void _disposeChannelIfIdle() {
-    if (_channel == null || _userListeners.isNotEmpty) {
+  void _handleRealtime(String userId, PostgresChangePayload payload) {
+    final listeners = _userListeners[userId];
+    if (listeners == null || listeners.isEmpty) {
       return;
     }
 
-    _client.removeChannel(_channel!);
-    _channel = null;
+    final isDeleteForUser = payload.eventType == PostgresChangeEvent.delete &&
+        payload.oldRecord['user_id']?.toString() == userId;
+    final isUpsertForUser = payload.newRecord['user_id']?.toString() == userId;
+    if (!isDeleteForUser && !isUpsertForUser) {
+      return;
+    }
+
+    for (final listener in listeners.toList()) {
+      listener();
+    }
+  }
+
+  void _disposeChannelIfIdle(String userId) {
+    final listeners = _userListeners[userId];
+    if (listeners != null && listeners.isNotEmpty) {
+      return;
+    }
+
+    final channel = _userChannels.remove(userId);
+    if (channel == null) {
+      return;
+    }
+
+    _client.removeChannel(channel);
   }
 }

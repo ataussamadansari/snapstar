@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import '../../core/utils/auth_helper.dart';
 import '../models/story_model.dart';
@@ -106,7 +107,7 @@ class StoryController extends GetxController {
 
       stories.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     } catch (e) {
-      print("Fetch Story Error: $e");
+      debugPrint('Fetch Story Error: $e');
     } finally {
       isLoading.value = false;
     }
@@ -123,7 +124,7 @@ class StoryController extends GetxController {
       // latest first
       stories.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     } catch (e) {
-      print("Fetch Story Error: $e");
+      debugPrint('Fetch Story Error: $e');
     } finally {
       isLoading.value = false;
     }
@@ -144,7 +145,7 @@ class StoryController extends GetxController {
 
       await fetchStories();
     } catch (e) {
-      print("Upload Story Error: $e");
+      debugPrint('Upload Story Error: $e');
     } finally {
       isUploading.value = false;
     }
@@ -169,7 +170,7 @@ class StoryController extends GetxController {
 
       await fetchStories();
     } catch (e) {
-      print("Batch Upload Error: $e");
+      debugPrint('Batch Upload Error: $e');
     } finally {
       isUploading.value = false;
     }
@@ -201,7 +202,7 @@ class StoryController extends GetxController {
       storyId: storyId,
       viewerId: viewerId,
     );
-    print("result isViewed: $res");
+    debugPrint('result isViewed: $res');
   }
 
   // ===============================

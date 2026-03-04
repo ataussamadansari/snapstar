@@ -5,6 +5,7 @@ import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/post_repository.dart';
 import '../../../data/repositories/subscriber_repository.dart';
 import '../../../data/repositories/user_repository.dart';
+import '../../../data/services/local_cache_service.dart';
 import '../../add_post_view/controllers/add_post_controller.dart';
 import '../../home_view/controllers/home_controller.dart';
 import '../../profile_view/controllers/profile_controller.dart';
@@ -23,6 +24,8 @@ class MainBinding extends Bindings {
         Get.find<PostRepository>(),
         Get.find<SubscriberRepository>(),
         Get.find<StoryController>(),
+        Get.find<AuthRepository>(),
+        Get.find<LocalCacheService>(),
       ),
     );
     Get.lazyPut<SearchsController>(
@@ -40,7 +43,11 @@ class MainBinding extends Bindings {
       ),
     );
     Get.lazyPut<ReelsController>(
-      () => ReelsController(Get.find<PostRepository>()),
+      () => ReelsController(
+        Get.find<PostRepository>(),
+        Get.find<AuthRepository>(),
+        Get.find<LocalCacheService>(),
+      ),
     );
     Get.lazyPut<ProfileController>(
       () => ProfileController(

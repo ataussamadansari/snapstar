@@ -12,7 +12,7 @@ class StorageService extends GetxService {
       if (userId == null) throw Exception('User not authenticated');
 
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final fileName = 'chat_${conversationId}_${timestamp}.jpg';
+      final fileName = 'chat_${conversationId}_$timestamp.jpg';
       final path = 'chat_images/$userId/$fileName';
 
       await _supabase.storage
@@ -37,7 +37,7 @@ class StorageService extends GetxService {
       if (userId == null) throw Exception('User not authenticated');
 
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final fileName = 'chat_${conversationId}_${timestamp}.mp4';
+      final fileName = 'chat_${conversationId}_$timestamp.mp4';
       final path = 'chat_videos/$userId/$fileName';
 
       await _supabase.storage

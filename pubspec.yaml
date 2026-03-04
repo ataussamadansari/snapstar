@@ -47,7 +47,7 @@ dependencies:
   flutter_cache_manager: ^3.4.1
   cached_network_image: ^3.4.1
   hugeicons: ^1.1.5
-  firebase_core: ^4.1.0
+  firebase_core: ^4.5.0
   firebase_messaging: ^16.0.2
   flutter_local_notifications: ^19.4.0
   flutter_native_splash: ^2.4.7

@@ -5,7 +5,7 @@ import '../repositories/story_repository.dart';
 
 class StoryService extends GetxService {
 
-   StoryRepository _repository;
+   final StoryRepository _repository;
    StoryService(this._repository);
 
   // =========================

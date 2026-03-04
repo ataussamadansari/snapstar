@@ -13,9 +13,9 @@ class LikeService {
   final LikeProvider _provider;
   final SupabaseClient _client;
 
-  RealtimeChannel? _channel;
   final Map<String, Set<VoidCallback>> _postListeners =
       <String, Set<VoidCallback>>{};
+  final Map<String, RealtimeChannel> _postChannels = <String, RealtimeChannel>{};
 
   Future<bool> toggleLike({
     required String postId,
@@ -100,7 +100,7 @@ class LikeService {
     _postListeners.putIfAbsent(postId, () => <VoidCallback>{});
     _postListeners[postId]!.add(onChanged);
 
-    _ensureRealtimeChannel();
+    _ensureRealtimeChannelForPost(postId);
 
     return () {
       final listeners = _postListeners[postId];
@@ -113,7 +113,7 @@ class LikeService {
         _postListeners.remove(postId);
       }
 
-      _disposeChannelIfIdle();
+      _disposeChannelIfIdle(postId);
     };
   }
 
@@ -182,18 +182,24 @@ class LikeService {
     }
   }
 
-  void _ensureRealtimeChannel() {
-    if (_channel != null) {
+  void _ensureRealtimeChannelForPost(String postId) {
+    if (_postChannels.containsKey(postId)) {
       return;
     }
 
-    _channel = _client.channel('likes-posts-realtime-channel');
+    final channel = _client.channel('likes-posts-realtime-$postId');
+    _postChannels[postId] = channel;
 
-    _channel!
+    channel
       ..onPostgresChanges(
         event: PostgresChangeEvent.update,
         schema: 'public',
         table: 'posts',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'id',
+          value: postId,
+        ),
         callback: _handlePostRealtime,
       )
       ..subscribe();
@@ -219,12 +225,17 @@ class LikeService {
     }
   }
 
-  void _disposeChannelIfIdle() {
-    if (_channel == null || _postListeners.isNotEmpty) {
+  void _disposeChannelIfIdle(String postId) {
+    final listeners = _postListeners[postId];
+    if (listeners != null && listeners.isNotEmpty) {
       return;
     }
 
-    _client.removeChannel(_channel!);
-    _channel = null;
+    final channel = _postChannels.remove(postId);
+    if (channel == null) {
+      return;
+    }
+
+    _client.removeChannel(channel);
   }
 }

@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:snapstar_app/app/core/utils/auth_helper.dart';
 
 import '../data/controllers/story_controller.dart';
+import '../data/controllers/post_story_style_controller.dart';
 import '../data/models/story_model.dart';
 
 class StoryCard extends StatelessWidget {
@@ -28,98 +29,102 @@ class StoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final styleController = Get.find<PostStoryStyleController>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black;
     final showStoryRing = hasUnseen || (isYourStory && hasStory);
 
-    return GestureDetector(
-      onTap: () {
-        if (isYourStory) {
-          if (!hasStory) {
-            _showStoryOptions(context); // No story â†’ open add
-          } else {
-            onTap?.call(); // Story exist â†’ open viewer
-          }
-        } else {
-          onTap?.call();
-        }
-      },
-      /*onTap: () {
-        if (isYourStory && imageUrl == null) {
-          _showStoryOptions(context);
-        } else {
-          onTap?.call();
-        }
-      },*/
-      child: SizedBox(
-        width: 85,
-        child: Column(
-          children: [
-            Stack(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(3),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: showStoryRing
-                        ? const LinearGradient(
-                            colors: [Colors.pink, Colors.orange],
-                          )
-                        : null,
-                  ),
-                  child: CircleAvatar(
-                    radius: 35,
-                    backgroundColor: isDark
-                        ? Colors.grey.shade800
-                        : Colors.grey.shade200,
-                    backgroundImage:
-                        (imageUrl != null && imageUrl!.isNotEmpty)
-                        ? NetworkImage(imageUrl!)
-                        : const AssetImage("assets/images/default_user.png"),
-                  ),
-                ),
+    return Obx(() {
+      final selectedLabelColor = styleController.storyLabelColor;
+      final textColor =
+          selectedLabelColor.toARGB32() == Colors.transparent.toARGB32()
+          ? (isDark ? Colors.white : Colors.black)
+          : selectedLabelColor;
+      final cardWidth = styleController.storyCardWidth.value;
+      final avatarRadius = styleController.storyAvatarRadius.value;
+      final ringStartColor = styleController.storyRingStartColor;
+      final ringEndColor = styleController.storyRingEndColor;
 
-                /// âž• PLUS ICON
-                if (isYourStory)
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: GestureDetector(
-                      onTap: () {
-                        _showStoryOptions(context);
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isDark ? Colors.white : Colors.black,
-                          border: Border.all(
-                            color: isDark ? Colors.black : Colors.white,
-                            width: 2,
+      return GestureDetector(
+        onTap: () {
+          if (isYourStory) {
+            if (!hasStory) {
+              _showStoryOptions(context);
+            } else {
+              onTap?.call();
+            }
+          } else {
+            onTap?.call();
+          }
+        },
+        child: SizedBox(
+          width: cardWidth,
+          child: Column(
+            children: [
+              Stack(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: showStoryRing
+                          ? LinearGradient(
+                              colors: [ringStartColor, ringEndColor],
+                            )
+                          : null,
+                    ),
+                    child: CircleAvatar(
+                      radius: avatarRadius,
+                      backgroundColor: isDark
+                          ? Colors.grey.shade800
+                          : Colors.grey.shade200,
+                      backgroundImage:
+                          (imageUrl != null && imageUrl!.isNotEmpty)
+                          ? NetworkImage(imageUrl!)
+                          : const AssetImage("assets/images/default_user.png"),
+                    ),
+                  ),
+
+                  if (isYourStory)
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: GestureDetector(
+                        onTap: () {
+                          _showStoryOptions(context);
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isDark ? Colors.white : Colors.black,
+                            border: Border.all(
+                              color: isDark ? Colors.black : Colors.white,
+                              width: 2,
+                            ),
                           ),
-                        ),
-                        padding: const EdgeInsets.all(4),
-                        child: Icon(
-                          Icons.add,
-                          size: 16,
-                          color: isDark ? Colors.black : Colors.white,
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(
+                            Icons.add,
+                            size: (avatarRadius * 0.45).clamp(12, 18),
+                            color: isDark ? Colors.black : Colors.white,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-              ],
-            ),
+                ],
+              ),
 
-            const SizedBox(height: 6),
+              const SizedBox(height: 6),
 
-            Text(
-              isYourStory ? "Your Story" : name,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12, color: textColor),
-            ),
-          ],
+              Text(
+                isYourStory ? "Your Story" : name,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, color: textColor),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 
   // ================= BOTTOM SHEET =================
@@ -163,7 +168,7 @@ class StoryCard extends StatelessWidget {
                   );
 
                   if (file != null) {
-                    _handleStoryFile(context, file, isVideo: false);
+                    _handleStoryFile(file, isVideo: false);
                   }
                 },
               ),
@@ -180,7 +185,7 @@ class StoryCard extends StatelessWidget {
                   );
 
                   if (file != null) {
-                    _handleStoryFile(context, file, isVideo: false);
+                    _handleStoryFile(file, isVideo: false);
                   }
                 },
               ),
@@ -197,7 +202,7 @@ class StoryCard extends StatelessWidget {
                   );
 
                   if (file != null) {
-                    _handleStoryFile(context, file, isVideo: true);
+                    _handleStoryFile(file, isVideo: true);
                   }
                 },
               ),
@@ -210,11 +215,7 @@ class StoryCard extends StatelessWidget {
     );
   }
 
-  void _handleStoryFile(
-    BuildContext context,
-    XFile file, {
-    required bool isVideo,
-  }) async {
+  void _handleStoryFile(XFile file, {required bool isVideo}) async {
     final storyController = Get.find<StoryController>();
 
     await storyController.uploadStory(
@@ -245,5 +246,3 @@ class StoryCard extends StatelessWidget {
     );
   }
 }
-
-

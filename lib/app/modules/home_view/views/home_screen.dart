@@ -1,9 +1,11 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:snapstar_app/app/routes/app_routes.dart';
 
 import 'package:snapstar_app/app/core/utils/auth_helper.dart';
 import 'package:snapstar_app/app/data/controllers/notification_badge_controller.dart';
+import 'package:snapstar_app/app/data/controllers/upload_task_controller.dart';
 import 'package:snapstar_app/app/global_widgets/loading_skeleton.dart';
 import 'package:snapstar_app/app/global_widgets/post_card.dart';
 import 'package:snapstar_app/app/global_widgets/story_card.dart';
@@ -16,6 +18,7 @@ class HomeScreen extends GetView<HomeController> {
   @override
   Widget build(BuildContext context) {
     final notificationBadgeController = Get.find<NotificationBadgeController>();
+    final uploadTaskController = Get.find<UploadTaskController>();
 
     return Scaffold(
       body: SafeArea(
@@ -46,11 +49,22 @@ class HomeScreen extends GetView<HomeController> {
                     snap: true,
                     elevation: 0,
                     scrolledUnderElevation: 0,
-                    title: const Text("SnapStar"),
+                    title: const Text(
+                      'SnapStar',
+                      style: TextStyle(
+                        fontSize: 30,
+                        fontFamily: 'cursive',
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                     actions: [
                       IconButton(
                         onPressed: () => Get.toNamed(Routes.chatList),
-                        icon: const Icon(Icons.chat_bubble_outline_rounded),
+                        icon: HugeIcon(
+                          icon: HugeIcons.strokeRoundedSent,
+                          color: Theme.of(context).iconTheme.color ?? Colors.black,
+                          size: 24,
+                        ),
                       ),
                       Obx(
                         () => IconButton(
@@ -58,7 +72,11 @@ class HomeScreen extends GetView<HomeController> {
                           icon: Stack(
                             clipBehavior: Clip.none,
                             children: [
-                              const Icon(Icons.notifications_none_rounded),
+                              HugeIcon(
+                                icon: HugeIcons.strokeRoundedNotification03,
+                                color: Theme.of(context).iconTheme.color ?? Colors.black,
+                                size: 24,
+                              ),
                               if (notificationBadgeController
                                       .unreadCount
                                       .value >
@@ -108,6 +126,60 @@ class HomeScreen extends GetView<HomeController> {
                   ),
 
                   SliverToBoxAdapter(child: _buildStories()),
+                  SliverToBoxAdapter(
+                    child: Obx(() {
+                      final tasks = uploadTaskController.activeTasks
+                          .where(
+                            (task) =>
+                                task.type == UploadTaskType.post ||
+                                task.type == UploadTaskType.story,
+                          )
+                          .toList();
+                      if (tasks.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 6, 14, 8),
+                        child: Column(
+                          children: tasks.map((task) {
+                            final percent = (task.progress * 100)
+                                .clamp(0, 100)
+                                .toInt();
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).cardColor,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${task.label} ($percent%)',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  LinearProgressIndicator(
+                                    value: task.progress.clamp(0.0, 1.0),
+                                    minHeight: 5,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      );
+                    }),
+                  ),
 
                   if (!hasPosts)
                     const SliverFillRemaining(
@@ -132,8 +204,10 @@ class HomeScreen extends GetView<HomeController> {
                               : index;
 
                           if (actualPostIndex < postCount) {
+                            final post = controller.posts[actualPostIndex];
                             return PostCard(
-                              post: controller.posts[actualPostIndex],
+                              key: ValueKey(post.id),
+                              post: post,
                               feedPosts: controller.posts,
                             );
                           }
@@ -147,10 +221,21 @@ class HomeScreen extends GetView<HomeController> {
                     ),
 
                   if (controller.isLoadingMorePosts.value)
-                    const SliverToBoxAdapter(
+                    SliverToBoxAdapter(
                       child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 20),
-                        child: Center(child: CircularProgressIndicator()),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 16,
+                        ),
+                        child: AppShimmer(
+                          child: Column(
+                            children: const [
+                              SkeletonBox(height: 12, width: 180),
+                              SizedBox(height: 10),
+                              SkeletonBox(height: 8, width: 140),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                 ],
@@ -179,7 +264,7 @@ class HomeScreen extends GetView<HomeController> {
             cacheExtent: 1000,
             addAutomaticKeepAlives: true,
             itemBuilder: (context, index) {
-              // ðŸŸ¢ SUGGESTED USERS POSITION LOGIC
+              // 🟢 SUGGESTED USERS POSITION LOGIC
               int suggestionIndex;
               if (postCount < 10) {
                 suggestionIndex = 1; // 1st post ke baad (index 1 par)
@@ -221,7 +306,8 @@ class HomeScreen extends GetView<HomeController> {
         final currentUserId = AuthHelper.currentUserId;
 
         final myStory = storyController.getMyLatestStory(currentUserId);
-        final String? myStoryPreviewUrl = myStory?.user?.avatarUrl;
+        final String? myStoryPreviewUrl =
+            myStory?.user?.avatarUrl ?? controller.myAvatarUrl.value;
 
         final otherStories = storyController.getOtherUsersStories(
           currentUserId,
@@ -231,7 +317,7 @@ class HomeScreen extends GetView<HomeController> {
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           children: [
-            /// ðŸ”µ YOUR STORY
+            /// 🔵 YOUR STORY
             StoryCard(
               name: "Your Story",
               imageUrl: myStoryPreviewUrl,
@@ -245,11 +331,13 @@ class HomeScreen extends GetView<HomeController> {
               },
             ),
 
-            /// ðŸ”µ OTHER USERS
+            /// 🔵 OTHER USERS
             ...otherStories.map((story) {
+              final userName = story.user?.username ?? 'user';
+              final avatarUrl = story.user?.avatarUrl;
               return StoryCard(
-                name: story.user!.username,
-                imageUrl: story.user!.avatarUrl,
+                name: userName,
+                imageUrl: avatarUrl,
                 hasUnseen: !story.isViewed,
                 onTap: () {
                   Get.toNamed(Routes.storyViewer, arguments: story);
@@ -297,3 +385,5 @@ class HomeScreen extends GetView<HomeController> {
     );
   }
 }
+
+

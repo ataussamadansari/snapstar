@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Numbers only restriction ke liye zaruri hai
 import 'package:get/get.dart';
+import 'package:snapstar_app/app/global_widgets/loading_skeleton.dart';
 import '../controllers/edit_profile_controller.dart';
 
 class EditProfileScreen extends GetView<EditProfileController> {
@@ -23,14 +24,10 @@ class EditProfileScreen extends GetView<EditProfileController> {
         actions: [
           Obx(
             () => controller.isLoading.value
-                ? const Center(
+                ? const AppShimmer(
                     child: Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
+                      child: SkeletonBox(width: 46, height: 20),
                     ),
                   )
                 : TextButton(
@@ -49,7 +46,9 @@ class EditProfileScreen extends GetView<EditProfileController> {
       ),
       body: Obx(() {
         if (controller.userProfile.value == null) {
-          return const Center(child: CircularProgressIndicator());
+          return const AppShimmer(
+            child: ProfileHeaderSkeleton(),
+          );
         }
 
         return SingleChildScrollView(

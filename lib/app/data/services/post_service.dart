@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/utils/cursor_page.dart';
 import '../models/post_model.dart';
 import '../providers/post_provider.dart';
 
@@ -78,6 +79,52 @@ class PostService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> fetchExplorePosts({
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    try {
+      return await _provider.fetchExplorePosts(limit: limit, offset: offset);
+    } catch (error, stackTrace) {
+      debugPrint('PostService.fetchExplorePosts error: $error');
+      debugPrint('PostService.fetchExplorePosts stack: $stackTrace');
+      rethrow;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchTrendingPosts({
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    try {
+      return await _provider.fetchTrendingPosts(limit: limit, offset: offset);
+    } catch (error, stackTrace) {
+      debugPrint('PostService.fetchTrendingPosts error: $error');
+      debugPrint('PostService.fetchTrendingPosts stack: $stackTrace');
+      rethrow;
+    }
+  }
+
+  Future<CursorPage<Map<String, dynamic>>> fetchFeedPostsByCursor({
+    int limit = 20,
+    DateTime? cursorCreatedAt,
+    String? cursorId,
+    double? cursorScore,
+  }) async {
+    try {
+      return await _provider.fetchFeedPostsByCursor(
+        limit: limit,
+        cursorCreatedAt: cursorCreatedAt,
+        cursorId: cursorId,
+        cursorScore: cursorScore,
+      );
+    } catch (error, stackTrace) {
+      debugPrint('PostService.fetchFeedPostsByCursor error: $error');
+      debugPrint('PostService.fetchFeedPostsByCursor stack: $stackTrace');
+      rethrow;
+    }
+  }
+
   Future<List<Map<String, dynamic>>> fetchUserPosts(
     String userId, {
     String? mediaType,
@@ -121,6 +168,24 @@ class PostService {
     }
   }
 
+  Future<CursorPage<Map<String, dynamic>>> fetchVideoPostsByCursor({
+    int limit = 20,
+    DateTime? cursorCreatedAt,
+    String? cursorId,
+  }) async {
+    try {
+      return await _provider.fetchVideoPostsByCursor(
+        limit: limit,
+        cursorCreatedAt: cursorCreatedAt,
+        cursorId: cursorId,
+      );
+    } catch (error, stackTrace) {
+      debugPrint('PostService.fetchVideoPostsByCursor error: $error');
+      debugPrint('PostService.fetchVideoPostsByCursor stack: $stackTrace');
+      rethrow;
+    }
+  }
+
   Future<List<Map<String, dynamic>>> searchPosts({
     required String query,
     int limit = 20,
@@ -135,6 +200,19 @@ class PostService {
     } catch (error, stackTrace) {
       debugPrint('PostService.searchPosts error: $error');
       debugPrint('PostService.searchPosts stack: $stackTrace');
+      rethrow;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> searchHashtags({
+    required String query,
+    int limit = 20,
+  }) async {
+    try {
+      return await _provider.searchHashtags(query: query, limit: limit);
+    } catch (error, stackTrace) {
+      debugPrint('PostService.searchHashtags error: $error');
+      debugPrint('PostService.searchHashtags stack: $stackTrace');
       rethrow;
     }
   }

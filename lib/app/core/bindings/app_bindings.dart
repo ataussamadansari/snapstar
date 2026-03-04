@@ -3,9 +3,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:snapstar_app/app/data/controllers/comment_controller.dart';
 import 'package:snapstar_app/app/data/controllers/global_media_controller.dart';
 import 'package:snapstar_app/app/data/controllers/notification_badge_controller.dart';
+import 'package:snapstar_app/app/data/controllers/post_story_style_controller.dart';
 import 'package:snapstar_app/app/data/controllers/share_controller.dart';
 import 'package:snapstar_app/app/data/controllers/story_controller.dart';
 import 'package:snapstar_app/app/data/controllers/subscriber_controller.dart';
+import 'package:snapstar_app/app/data/controllers/upload_task_controller.dart';
 import 'package:snapstar_app/app/data/providers/auth_provider.dart';
 import 'package:snapstar_app/app/data/providers/comment_provider.dart';
 import 'package:snapstar_app/app/data/providers/like_provider.dart';
@@ -26,6 +28,7 @@ import 'package:snapstar_app/app/data/services/auth_service.dart';
 import 'package:snapstar_app/app/data/services/comment_service.dart';
 import 'package:snapstar_app/app/data/services/fcm_service.dart';
 import 'package:snapstar_app/app/data/services/like_service.dart';
+import 'package:snapstar_app/app/data/services/local_cache_service.dart';
 import 'package:snapstar_app/app/data/services/notification_service.dart';
 import 'package:snapstar_app/app/data/services/post_service.dart';
 import 'package:snapstar_app/app/data/services/storage_service.dart';
@@ -123,6 +126,7 @@ class AppBindings extends Bindings {
       permanent: true,
     );
     Get.put<StorageService>(StorageService(), permanent: true);
+    Get.put<LocalCacheService>(LocalCacheService(), permanent: true);
 
     Get.put<AuthController>(
       AuthController(Get.find<AuthRepository>()),
@@ -136,6 +140,7 @@ class AppBindings extends Bindings {
       SubscriberController(Get.find<SubscriberRepository>()),
       permanent: true,
     );
+    Get.put<UploadTaskController>(UploadTaskController(), permanent: true);
     Get.put<StoryController>(
       StoryController(Get.find<StoryService>()),
       permanent: true,
@@ -153,6 +158,10 @@ class AppBindings extends Bindings {
     );
     Get.put<ShareController>(
       ShareController(Get.find<PostRepository>()),
+      permanent: true,
+    );
+    Get.put<PostStoryStyleController>(
+      PostStoryStyleController(Get.find<LocalCacheService>()),
       permanent: true,
     );
     Get.put<GlobalMediaController>(GlobalMediaController(), permanent: true);

@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
@@ -15,6 +15,8 @@ class StoryViewerController extends GetxController {
   final RxInt currentIndex = 0.obs;
   final RxDouble progress = 0.0.obs;
   final RxBool isPaused = false.obs;
+  final RxBool isDeleting = false.obs;
+  final RxBool isBuffering = true.obs;
 
   Timer? _timer;
   late String userId;
@@ -49,6 +51,14 @@ class StoryViewerController extends GetxController {
         mediaUrl.endsWith('.mov') ||
         mediaUrl.endsWith('.mkv') ||
         mediaUrl.endsWith('.webm');
+  }
+
+  bool get canDeleteCurrentStory {
+    final story = currentStory;
+    if (story == null) {
+      return false;
+    }
+    return story.userId == AuthHelper.currentUserId;
   }
 
   @override
@@ -96,18 +106,16 @@ class StoryViewerController extends GetxController {
   void _startCurrentStory() {
     progress.value = 0;
     isPaused.value = false;
+    isBuffering.value = true;
     _timer?.cancel();
-
-    if (!isCurrentVideo) {
-      startProgress();
-    }
   }
 
-  void startProgress() {
-    progress.value = 0;
+  void startProgress({bool reset = true}) {
+    if (reset) {
+      progress.value = 0;
+    }
     _timer?.cancel();
 
-    // 5 seconds for images (5000ms / 50ms interval = 100 ticks)
     _timer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
       if (isPaused.value) {
         return;
@@ -155,21 +163,8 @@ class StoryViewerController extends GetxController {
 
     isPaused.value = false;
 
-    if (!isCurrentVideo) {
-      // Restart timer from current progress
-      _timer?.cancel();
-      _timer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
-        if (isPaused.value) {
-          return;
-        }
-
-        progress.value += 0.01;
-
-        if (progress.value >= 1.0) {
-          progress.value = 1.0;
-          nextStory();
-        }
-      });
+    if (!isCurrentVideo && !isBuffering.value) {
+      startProgress(reset: false);
     }
   }
 
@@ -183,6 +178,37 @@ class StoryViewerController extends GetxController {
 
     final normalized = value.clamp(0.0, 1.0);
     progress.value = normalized;
+  }
+
+  void onMediaBufferingChanged(bool buffering) {
+    isBuffering.value = buffering;
+
+    if (buffering) {
+      _timer?.cancel();
+      return;
+    }
+
+    if (!isCurrentVideo && !isPaused.value && progress.value < 1.0) {
+      startProgress(reset: false);
+    }
+  }
+
+  void onImageReady() {
+    if (isCurrentVideo) {
+      return;
+    }
+
+    isBuffering.value = false;
+    if (!isPaused.value && progress.value < 1.0) {
+      startProgress(reset: false);
+    }
+  }
+
+  void onMediaLoadError() {
+    isBuffering.value = false;
+    if (!isCurrentVideo && !isPaused.value && progress.value < 1.0) {
+      startProgress(reset: false);
+    }
   }
 
   void onVideoCompleted() {
@@ -205,6 +231,35 @@ class StoryViewerController extends GetxController {
       storyId: story.id,
       viewerId: AuthHelper.currentUserId,
     );
+  }
+
+  Future<void> deleteCurrentStory() async {
+    final story = currentStory;
+    if (story == null || !canDeleteCurrentStory || isDeleting.value) {
+      return;
+    }
+
+    try {
+      isDeleting.value = true;
+      _timer?.cancel();
+
+      await storyController.deleteStory(story.id);
+      userStories.removeWhere((s) => s.id == story.id);
+
+      if (userStories.isEmpty) {
+        Get.back();
+        return;
+      }
+
+      if (currentIndex.value >= userStories.length) {
+        currentIndex.value = userStories.length - 1;
+      }
+
+      _startCurrentStory();
+      await markCurrentViewed();
+    } finally {
+      isDeleting.value = false;
+    }
   }
 
   @override

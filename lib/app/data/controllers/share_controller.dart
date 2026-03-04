@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:snapstar_app/app/core/utils/helpers.dart';
 
 import '../models/post_model.dart';
 import '../repositories/post_repository.dart';
@@ -48,22 +49,22 @@ class ShareController extends GetxController {
         await Clipboard.setData(ClipboardData(text: post.mediaUrls.first));
       }
 
-      Get.snackbar(
-        'Shared',
-        post.mediaUrls.isNotEmpty
+      AppHelpers.showSnackBar(
+        title: 'Shared',
+        message: post.mediaUrls.isNotEmpty
             ? 'Post link copied to clipboard'
             : 'Post shared',
-        snackPosition: SnackPosition.BOTTOM,
+        isError: false,
       );
     } catch (error, stackTrace) {
       shareCounts[postId] = previousCount;
       debugPrint('ShareController.sharePost error: $error');
       debugPrint('ShareController.sharePost stack: $stackTrace');
 
-      Get.snackbar(
-        'Error',
-        'Could not share post',
-        snackPosition: SnackPosition.BOTTOM,
+      AppHelpers.showSnackBar(
+        title: 'Error',
+        message: 'Could not share post',
+        isError: true,
       );
     } finally {
       shareLoading[postId] = false;

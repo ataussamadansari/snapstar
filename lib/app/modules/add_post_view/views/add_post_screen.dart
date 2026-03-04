@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:snapstar_app/app/global_widgets/loading_skeleton.dart';
 import '../controllers/add_post_controller.dart';
 
 class AddPostScreen extends GetView<AddPostController> {
@@ -11,10 +12,6 @@ class AddPostScreen extends GetView<AddPostController> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => Get.back(),
-        ),
         title: const Text(
           "New Post",
           style: TextStyle(fontWeight: FontWeight.bold),
@@ -24,11 +21,14 @@ class AddPostScreen extends GetView<AddPostController> {
             () => controller.isLoading.value
                 ? const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Center(
-                      child: SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                    child: SizedBox(
+                      width: 70,
+                      child: AppShimmer(
+                        child: SkeletonBox(
+                          height: 18,
+                          width: 70,
+                          radius: 6,
+                        ),
                       ),
                     ),
                   )
@@ -110,7 +110,7 @@ class AddPostScreen extends GetView<AddPostController> {
       height: 200,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: theme.dividerColor),
       ),
@@ -140,7 +140,11 @@ class AddPostScreen extends GetView<AddPostController> {
       if (controller.videoThumbnail.value == null) {
         return const SizedBox(
           height: 250,
-          child: Center(child: CircularProgressIndicator()),
+          child: Center(
+            child: AppShimmer(
+              child: SkeletonBox(width: double.infinity, height: 220, radius: 12),
+            ),
+          ),
         );
       }
 
@@ -161,7 +165,7 @@ class AddPostScreen extends GetView<AddPostController> {
             child: Center(
               child: Icon(
                 Icons.play_circle_fill,
-                color: theme.colorScheme.onSurface.withOpacity(0.9),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.9),
                 size: 64,
               ),
             ),
@@ -177,27 +181,64 @@ class AddPostScreen extends GetView<AddPostController> {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: controller.selectedFiles.length,
+      itemCount: 1,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
+        crossAxisCount: 1,
       ),
-      itemBuilder: (context, index) {
+      itemBuilder: (context, _) {
+        final hasMultiple = controller.selectedFiles.length > 1;
+        final currentIndex = controller.previewIndex.value.clamp(
+          0,
+          controller.selectedFiles.length - 1,
+        );
+
         return Stack(
           children: [
-            Positioned.fill(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.file(
-                  controller.selectedFiles[index],
-                  fit: BoxFit.cover,
-                ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: hasMultiple
+                    ? PageView.builder(
+                        itemCount: controller.selectedFiles.length,
+                        onPageChanged: controller.setPreviewIndex,
+                        itemBuilder: (context, index) => Image.file(
+                          controller.selectedFiles[index],
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : Image.file(
+                        controller.selectedFiles.first,
+                        fit: BoxFit.cover,
+                      ),
               ),
             ),
+            if (hasMultiple)
+              Positioned(
+                top: 8,
+                left: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${currentIndex + 1}/${controller.selectedFiles.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
             _buildDeleteButton(
               context,
-              () => controller.selectedFiles.removeAt(index),
+              () => controller.removeImageAt(currentIndex),
             ),
           ],
         );
@@ -216,7 +257,7 @@ class AddPostScreen extends GetView<AddPostController> {
         child: Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surface.withOpacity(0.7),
+            color: theme.colorScheme.surface.withValues(alpha: 0.7),
             shape: BoxShape.circle,
           ),
           child: Icon(

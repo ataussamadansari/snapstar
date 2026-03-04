@@ -1,5 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/utils/cursor_page.dart';
+
 class NotificationProvider {
   NotificationProvider(this._client);
 
@@ -46,6 +48,69 @@ class NotificationProvider {
       if (_isMissingNotificationsTable(error)) {
         _isNotificationsSupported = false;
         return <Map<String, dynamic>>[];
+      }
+      rethrow;
+    }
+  }
+
+  Future<CursorPage<Map<String, dynamic>>> fetchNotificationsByCursor({
+    required String userId,
+    required int limit,
+    DateTime? cursorCreatedAt,
+    String? cursorId,
+  }) async {
+    if (!await _ensureNotificationsTable()) {
+      return const CursorPage<Map<String, dynamic>>(
+        items: <Map<String, dynamic>>[],
+        nextCursorCreatedAt: null,
+        nextCursorId: null,
+        hasMore: false,
+      );
+    }
+
+    try {
+      var query = _client
+          .from('notifications')
+          .select()
+          .eq('user_id', userId)
+          .eq('is_deleted', false);
+
+      if (cursorCreatedAt != null && cursorId != null) {
+        final cursorIso = cursorCreatedAt.toUtc().toIso8601String();
+        query = query.or(
+          'created_at.lt.$cursorIso,and(created_at.eq.$cursorIso,id.lt.$cursorId)',
+        );
+      }
+
+      final response = await query
+          .order('created_at', ascending: false)
+          .order('id', ascending: false)
+          .limit(limit);
+
+      final rows = List<Map<String, dynamic>>.from(response);
+      DateTime? nextCreatedAt;
+      String? nextId;
+      if (rows.isNotEmpty) {
+        final last = rows.last;
+        nextCreatedAt = DateTime.tryParse(last['created_at']?.toString() ?? '');
+        nextId = last['id']?.toString();
+      }
+
+      return CursorPage<Map<String, dynamic>>(
+        items: rows,
+        nextCursorCreatedAt: nextCreatedAt?.toUtc(),
+        nextCursorId: nextId,
+        hasMore: rows.length >= limit && nextCreatedAt != null && nextId != null,
+      );
+    } on PostgrestException catch (error) {
+      if (_isMissingNotificationsTable(error)) {
+        _isNotificationsSupported = false;
+        return const CursorPage<Map<String, dynamic>>(
+          items: <Map<String, dynamic>>[],
+          nextCursorCreatedAt: null,
+          nextCursorId: null,
+          hasMore: false,
+        );
       }
       rethrow;
     }

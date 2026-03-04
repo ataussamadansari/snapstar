@@ -51,7 +51,7 @@ class StoryRepository {
   Future<List<StoryModel>> fetchUserStories(String userId) async {
     final response = await _client
         .from('stories')
-        .select()
+        .select('*, users(*)')
         .eq('user_id', userId)
         .gt('expires_at', DateTime.now().toIso8601String())
         .order('created_at', ascending: false);
@@ -63,6 +63,28 @@ class StoryRepository {
   // 🔹 DELETE STORY
   // ===============================
   Future<void> deleteStory(String storyId) async {
+    final story = await _client
+        .from('stories')
+        .select('media_urls')
+        .eq('id', storyId)
+        .maybeSingle();
+
+    if (story != null) {
+      final urls = List<String>.from(story['media_urls'] ?? const <String>[]);
+      final storagePaths = urls
+          .map(_extractStoriesBucketPath)
+          .whereType<String>()
+          .toList();
+
+      if (storagePaths.isNotEmpty) {
+        try {
+          await _client.storage.from('stories').remove(storagePaths);
+        } catch (_) {
+          // Storage cleanup failure should not block DB delete.
+        }
+      }
+    }
+
     await _client.from('stories').delete().eq('id', storyId);
   }
 
@@ -113,5 +135,24 @@ class StoryRepository {
         .from('stories')
         .delete()
         .lt('expires_at', DateTime.now().toIso8601String());
+  }
+
+  String? _extractStoriesBucketPath(String url) {
+    if (url.isEmpty) {
+      return null;
+    }
+
+    final marker = '/storage/v1/object/public/stories/';
+    final index = url.indexOf(marker);
+    if (index < 0) {
+      return null;
+    }
+
+    final path = url.substring(index + marker.length).trim();
+    if (path.isEmpty) {
+      return null;
+    }
+
+    return Uri.decodeFull(path);
   }
 }

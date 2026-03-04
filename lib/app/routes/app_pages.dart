@@ -20,6 +20,14 @@ import 'package:snapstar_app/app/modules/signup_view/bindings/signup_binding.dar
 import 'package:snapstar_app/app/modules/signup_view/views/signup_screen.dart';
 import 'package:snapstar_app/app/modules/splash_view/bindings/splash_binding.dart';
 import 'package:snapstar_app/app/modules/splash_view/views/splash_screen.dart';
+import 'package:snapstar_app/app/modules/settings_view/bindings/settings_binding.dart';
+import 'package:snapstar_app/app/modules/settings_view/views/accessibility_settings_screen.dart';
+import 'package:snapstar_app/app/modules/settings_view/views/app_update_screen.dart';
+import 'package:snapstar_app/app/modules/settings_view/views/content_style_settings_screen.dart';
+import 'package:snapstar_app/app/modules/settings_view/views/help_feedback_screen.dart';
+import 'package:snapstar_app/app/modules/settings_view/views/notification_settings_screen.dart';
+import 'package:snapstar_app/app/modules/settings_view/views/privacy_policy_screen.dart';
+import 'package:snapstar_app/app/modules/settings_view/views/settings_screen.dart';
 import 'package:snapstar_app/app/modules/story_viewer_view/bindings/story_viewer_binding.dart';
 import 'package:snapstar_app/app/modules/story_viewer_view/views/story_viewer_screen.dart';
 import 'package:snapstar_app/app/modules/subscribe_list_view/bindings/subscribe_list_binding.dart';
@@ -96,6 +104,48 @@ class AppPages {
       name: Routes.chatDetail,
       page: () => const ChatDetailScreen(),
       binding: ChatDetailBinding(),
+      middlewares: [AuthMiddleware()],
+    ),
+    GetPage(
+      name: Routes.settings,
+      page: () => const SettingsScreen(),
+      binding: SettingsBinding(),
+      middlewares: [AuthMiddleware()],
+    ),
+    GetPage(
+      name: Routes.settingsPrivacyPolicy,
+      page: () => const PrivacyPolicyScreen(),
+      binding: SettingsBinding(),
+      middlewares: [AuthMiddleware()],
+    ),
+    GetPage(
+      name: Routes.settingsNotifications,
+      page: () => const NotificationSettingsScreen(),
+      binding: SettingsBinding(),
+      middlewares: [AuthMiddleware()],
+    ),
+    GetPage(
+      name: Routes.settingsHelpFeedback,
+      page: () => const HelpFeedbackScreen(),
+      binding: SettingsBinding(),
+      middlewares: [AuthMiddleware()],
+    ),
+    GetPage(
+      name: Routes.settingsAppUpdate,
+      page: () => const AppUpdateScreen(),
+      binding: SettingsBinding(),
+      middlewares: [AuthMiddleware()],
+    ),
+    GetPage(
+      name: Routes.settingsAccessibility,
+      page: () => const AccessibilitySettingsScreen(),
+      binding: SettingsBinding(),
+      middlewares: [AuthMiddleware()],
+    ),
+    GetPage(
+      name: Routes.settingsContentStyle,
+      page: () => const ContentStyleSettingsScreen(),
+      binding: SettingsBinding(),
       middlewares: [AuthMiddleware()],
     ),
   ];

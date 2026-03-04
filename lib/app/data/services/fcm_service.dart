@@ -12,6 +12,8 @@ import '../../../firebase_options.dart';
 import '../../routes/app_routes.dart';
 import '../controllers/notification_badge_controller.dart';
 import '../repositories/auth_repository.dart';
+import '../repositories/post_repository.dart';
+import '../../modules/post_view/views/post_detail_screen.dart';
 
 const String _kDefaultNotificationChannelId = 'snapstar_notifications';
 const String _kDefaultNotificationChannelName = 'Snapstar Notifications';
@@ -129,7 +131,7 @@ class FcmService extends GetxService {
 
   Future<void> _initializeLocalNotifications() async {
     const androidSettings = AndroidInitializationSettings(
-      '@mipmap/launcher_icon',
+      '@mipmap/ic_launcher',
     );
     const iosSettings = DarwinInitializationSettings();
     const initializationSettings = InitializationSettings(
@@ -166,7 +168,7 @@ class FcmService extends GetxService {
   }
 
   Future<void> _requestPermissions() async {
-    await _messaging.requestPermission(
+    final settings = await _messaging.requestPermission(
       alert: true,
       badge: true,
       sound: true,
@@ -174,6 +176,9 @@ class FcmService extends GetxService {
       carPlay: false,
       criticalAlert: false,
       provisional: false,
+    );
+    debugPrint(
+      'FcmService._requestPermissions status: ${settings.authorizationStatus.name}',
     );
 
     await _localNotifications
@@ -374,13 +379,65 @@ class FcmService extends GetxService {
       return;
     }
 
-    final route = data['route']?.toString();
+    final route = data['route']?.toString().trim();
     if (route != null && route.isNotEmpty && route.startsWith('/')) {
       Future<void>.microtask(() => Get.toNamed(route, arguments: data));
       return;
     }
 
+    final conversationId =
+        data['conversation_id']?.toString().trim() ??
+        data['chat_id']?.toString().trim();
+    if (conversationId != null && conversationId.isNotEmpty) {
+      Future<void>.microtask(
+        () => Get.toNamed(Routes.chatDetail, arguments: conversationId),
+      );
+      return;
+    }
+
+    final actorId = data['actor_id']?.toString().trim();
+    final type = data['type']?.toString().toLowerCase().trim();
+    const profileTypes = <String>{
+      'subscribe',
+      'unsubscribe',
+      'follow',
+      'follower',
+    };
+    if (actorId != null &&
+        actorId.isNotEmpty &&
+        profileTypes.contains(type)) {
+      Future<void>.microtask(
+        () => Get.toNamed(Routes.userProfile, arguments: actorId),
+      );
+      return;
+    }
+
+    final postId = data['post_id']?.toString().trim();
+    if (postId != null && postId.isNotEmpty) {
+      _openPostFromNotification(postId);
+      return;
+    }
+
     _openNotificationsRoute();
+  }
+
+  Future<void> _openPostFromNotification(String postId) async {
+    try {
+      if (!Get.isRegistered<PostRepository>()) {
+        _openNotificationsRoute();
+        return;
+      }
+      final post = await Get.find<PostRepository>().fetchPostById(postId);
+      if (post == null) {
+        _openNotificationsRoute();
+        return;
+      }
+      Future<void>.microtask(() => Get.to(() => PostDetailScreen(post: post)));
+    } catch (error, stackTrace) {
+      debugPrint('FcmService._openPostFromNotification error: $error');
+      debugPrint('FcmService._openPostFromNotification stack: $stackTrace');
+      _openNotificationsRoute();
+    }
   }
 
   void _openNotificationsRoute() {

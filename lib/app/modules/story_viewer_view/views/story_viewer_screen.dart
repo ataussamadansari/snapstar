@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:video_player/video_player.dart';
 
@@ -9,11 +9,11 @@ import '../controllers/story_viewer_controller.dart';
 
 class StoryViewerScreen extends GetView<StoryViewerController> {
   const StoryViewerScreen({super.key});
+  static const double _topControlsHitArea = 120;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
       body: SafeArea(
         child: Obx(() {
           if (controller.userStories.isEmpty) {
@@ -24,6 +24,10 @@ class StoryViewerScreen extends GetView<StoryViewerController> {
 
           return GestureDetector(
             onTapUp: (details) {
+              if (details.localPosition.dy <= _topControlsHitArea) {
+                return;
+              }
+
               final width = MediaQuery.of(context).size.width;
 
               if (details.globalPosition.dx < width / 2) {
@@ -35,6 +39,7 @@ class StoryViewerScreen extends GetView<StoryViewerController> {
             onLongPress: controller.pause,
             onLongPressUp: controller.resume,
             child: Stack(
+              clipBehavior: Clip.none,
               children: [
                 Center(
                   child: _StoryMedia(
@@ -43,82 +48,177 @@ class StoryViewerScreen extends GetView<StoryViewerController> {
                     isPaused: controller.isPaused.value,
                     onVideoProgress: controller.updateVideoProgress,
                     onVideoCompleted: controller.onVideoCompleted,
+                    onImageReady: controller.onImageReady,
+                    onBufferingChanged: controller.onMediaBufferingChanged,
+                    onMediaLoadError: controller.onMediaLoadError,
                   ),
                 ),
                 Positioned(
-                  top: 10,
-                  left: 10,
-                  right: 10,
-                  child: Row(
-                    children: List.generate(controller.userStories.length, (
-                      index,
-                    ) {
-                      return Expanded(
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 2),
-                          height: 3,
-                          child: LinearProgressIndicator(
-                            value: index == controller.currentIndex.value
-                                ? controller.progress.value
-                                : index < controller.currentIndex.value
-                                ? 1
-                                : 0,
-                            backgroundColor: Colors.white30,
-                            valueColor: const AlwaysStoppedAnimation(
-                              Colors.white,
-                            ),
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.only(
+                      top: 20,
+                      left: 16,
+                      right: 16,
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: List.generate(
+                            controller.userStories.length,
+                            (index) {
+                              final progress =
+                                  index == controller.currentIndex.value
+                                  ? controller.progress.value
+                                  : index < controller.currentIndex.value
+                                  ? 1.0
+                                  : 0.0;
+                              return Expanded(
+                                child: Container(
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 2,
+                                  ),
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.28),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(999),
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: FractionallySizedBox(
+                                        widthFactor: progress.clamp(0.0, 1.0),
+                                        child: Container(color: Colors.white),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
-                      );
-                    }),
-                  ),
-                ),
-                Positioned(
-                  top: 20,
-                  left: 16,
-                  right: 16,
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundColor: Colors.grey.shade800,
-                        backgroundImage:
-                            (story.user?.avatarUrl != null &&
-                                story.user!.avatarUrl!.isNotEmpty)
-                            ? NetworkImage(story.user!.avatarUrl!)
-                            : null,
-                        child:
-                            (story.user?.avatarUrl == null ||
-                                story.user!.avatarUrl!.isEmpty)
-                            ? const Icon(Icons.person, color: Colors.white)
-                            : null,
-                      ),
-                      const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            story.user?.username ?? '',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 18,
+                              backgroundColor: Colors.grey.shade800,
+                              backgroundImage:
+                                  (story.user?.avatarUrl != null &&
+                                      story.user!.avatarUrl!.isNotEmpty)
+                                  ? NetworkImage(story.user!.avatarUrl!)
+                                  : null,
+                              child:
+                                  (story.user?.avatarUrl == null ||
+                                      story.user!.avatarUrl!.isEmpty)
+                                  ? const Icon(
+                                      Icons.person,
+                                      color: Colors.white,
+                                    )
+                                  : null,
                             ),
-                          ),
-                          Text(
-                            story.createdAt.timeAgo,
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
+                            const SizedBox(width: 10),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  story.user?.username ?? '',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  story.createdAt.timeAgo,
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white),
-                        onPressed: () => Get.back(),
-                      ),
-                    ],
+                            const Spacer(),
+                            if (controller.canDeleteCurrentStory)
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.35),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: IconButton(
+                                  icon: controller.isDeleting.value
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.delete_outline,
+                                          color: Colors.white,
+                                        ),
+                                  onPressed: controller.isDeleting.value
+                                      ? null
+                                      : () async {
+                                          final shouldDelete =
+                                              await Get.dialog<bool>(
+                                                AlertDialog(
+                                                  title: const Text(
+                                                    'Delete story?',
+                                                  ),
+                                                  content: const Text(
+                                                    'This story will be removed for everyone.',
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () => Get.back(
+                                                        result: false,
+                                                      ),
+                                                      child: const Text(
+                                                        'Cancel',
+                                                      ),
+                                                    ),
+                                                    TextButton(
+                                                      onPressed: () => Get.back(
+                                                        result: true,
+                                                      ),
+                                                      child: const Text(
+                                                        'Delete',
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+
+                                          if (shouldDelete == true) {
+                                            await controller
+                                                .deleteCurrentStory();
+                                          }
+                                        },
+                                ),
+                              ),
+                            const SizedBox(width: 6),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.35),
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.close,
+                                  color: Colors.white,
+                                ),
+                                onPressed: () => Get.back(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -137,12 +237,18 @@ class _StoryMedia extends StatefulWidget {
     required this.isPaused,
     required this.onVideoProgress,
     required this.onVideoCompleted,
+    required this.onImageReady,
+    required this.onBufferingChanged,
+    required this.onMediaLoadError,
   });
 
   final StoryModel story;
   final bool isPaused;
   final ValueChanged<double> onVideoProgress;
   final VoidCallback onVideoCompleted;
+  final VoidCallback onImageReady;
+  final ValueChanged<bool> onBufferingChanged;
+  final VoidCallback onMediaLoadError;
 
   @override
   State<_StoryMedia> createState() => _StoryMediaState();
@@ -153,6 +259,10 @@ class _StoryMediaState extends State<_StoryMedia> {
   bool _isVideoInitialized = false;
   bool _videoHasError = false;
   bool _completionSent = false;
+  bool _isImageLoaded = false;
+  bool _imageHasError = false;
+  bool _readyDispatched = false;
+  bool _lastVideoBuffering = false;
 
   bool get _isVideo {
     if (widget.story.mediaTypes.isNotEmpty) {
@@ -172,6 +282,7 @@ class _StoryMediaState extends State<_StoryMedia> {
   @override
   void initState() {
     super.initState();
+    widget.onBufferingChanged(true);
     _initVideoIfNeeded();
   }
 
@@ -180,6 +291,11 @@ class _StoryMediaState extends State<_StoryMedia> {
     super.didUpdateWidget(oldWidget);
 
     if (oldWidget.story.id != widget.story.id) {
+      _isImageLoaded = false;
+      _imageHasError = false;
+      _readyDispatched = false;
+      _lastVideoBuffering = false;
+      widget.onBufferingChanged(true);
       _disposeVideo();
       _initVideoIfNeeded();
       return;
@@ -226,6 +342,8 @@ class _StoryMediaState extends State<_StoryMedia> {
       setState(() {
         _isVideoInitialized = true;
       });
+      _dispatchReadyOnce();
+      widget.onBufferingChanged(false);
     } catch (_) {
       if (!mounted) {
         return;
@@ -234,6 +352,8 @@ class _StoryMediaState extends State<_StoryMedia> {
       setState(() {
         _videoHasError = true;
       });
+      widget.onBufferingChanged(false);
+      widget.onMediaLoadError();
     }
   }
 
@@ -245,6 +365,11 @@ class _StoryMediaState extends State<_StoryMedia> {
 
     final durationMs = controller.value.duration.inMilliseconds;
     final positionMs = controller.value.position.inMilliseconds;
+    final buffering = controller.value.isBuffering;
+    if (buffering != _lastVideoBuffering) {
+      _lastVideoBuffering = buffering;
+      widget.onBufferingChanged(buffering);
+    }
 
     if (durationMs > 0) {
       widget.onVideoProgress(positionMs / durationMs);
@@ -281,16 +406,49 @@ class _StoryMediaState extends State<_StoryMedia> {
     }
 
     if (!_isVideo) {
-      return Image.network(
-        widget.story.mediaUrls.first,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-        errorBuilder: (_, __, ___) {
-          return const Center(
-            child: Icon(Icons.broken_image, color: Colors.white70, size: 40),
-          );
-        },
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.network(
+            widget.story.mediaUrls.first,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            frameBuilder: (_, child, frame, wasSynchronouslyLoaded) {
+              final hasFrame = wasSynchronouslyLoaded || frame != null;
+              if (hasFrame && !_isImageLoaded && !_imageHasError) {
+                _isImageLoaded = true;
+                widget.onBufferingChanged(false);
+                _dispatchReadyOnce();
+              }
+              return child;
+            },
+            loadingBuilder: (_, child, loadingProgress) {
+              if (loadingProgress != null &&
+                  !_imageHasError &&
+                  !_isImageLoaded) {
+                widget.onBufferingChanged(true);
+              }
+              return child;
+            },
+            errorBuilder: (_, __, ___) {
+              if (!_imageHasError) {
+                _imageHasError = true;
+                widget.onBufferingChanged(false);
+                widget.onMediaLoadError();
+              }
+              return const Center(
+                child: Icon(
+                  Icons.broken_image,
+                  color: Colors.white70,
+                  size: 40,
+                ),
+              );
+            },
+          ),
+          if (!_isImageLoaded && !_imageHasError)
+            const Center(child: CircularProgressIndicator(color: Colors.white)),
+        ],
       );
     }
 
@@ -309,14 +467,29 @@ class _StoryMediaState extends State<_StoryMedia> {
     final size = _videoController!.value.size;
 
     return SizedBox.expand(
-      child: FittedBox(
-        fit: BoxFit.cover,
-        child: SizedBox(
-          width: size.width,
-          height: size.height,
-          child: VideoPlayer(_videoController!),
-        ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          FittedBox(
+            fit: BoxFit.cover,
+            child: SizedBox(
+              width: size.width,
+              height: size.height,
+              child: VideoPlayer(_videoController!),
+            ),
+          ),
+          if (_videoController!.value.isBuffering)
+            const Center(child: CircularProgressIndicator(color: Colors.white)),
+        ],
       ),
     );
+  }
+
+  void _dispatchReadyOnce() {
+    if (_readyDispatched) {
+      return;
+    }
+    _readyDispatched = true;
+    widget.onImageReady();
   }
 }

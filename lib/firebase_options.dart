@@ -51,18 +51,21 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyAcZ_-dg0L2hEhZVCGCXyod8XuQBQYrWfY',
-    appId: '1:625297648979:android:99f32326f43a4d2d2d85a6',
+    appId: '1:625297648979:android:ab409d5e57b056962d85a6',
     messagingSenderId: '625297648979',
     projectId: 'adroit-hall-451612-t1',
     storageBucket: 'adroit-hall-451612-t1.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyAcZ_-dg0L2hEhZVCGCXyod8XuQBQYrWfY',
-    appId: '1:625297648979:ios:PLACEHOLDER',
+    apiKey: 'AIzaSyBpKsS5WRhWftB-ofQVb9nCA28e3l0C0rg',
+    appId: '1:625297648979:ios:b4a9efa84eeb28482d85a6',
     messagingSenderId: '625297648979',
     projectId: 'adroit-hall-451612-t1',
     storageBucket: 'adroit-hall-451612-t1.firebasestorage.app',
-    iosBundleId: 'com.starsky.snapstar',
+    androidClientId: '625297648979-5psl745jpqn310965kndho6d4osoac4b.apps.googleusercontent.com',
+    iosClientId: '625297648979-j3u0gp9uvi8n95pslsq1q3vh345qbn90.apps.googleusercontent.com',
+    iosBundleId: 'com.starsky.snapstarApp',
   );
+
 }

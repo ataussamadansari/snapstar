@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:snapstar_app/app/core/utils/helpers.dart';
 
 import '../../../data/models/conversation_model.dart';
 import '../../../data/models/user_model.dart';
@@ -92,10 +93,10 @@ class ChatListController extends GetxController {
     } catch (error) {
       debugPrint('ChatListController.openChatWithUser error: $error');
       errorMessage.value = 'Failed to open chat';
-      Get.snackbar(
-        'Error',
-        'Failed to open chat',
-        snackPosition: SnackPosition.BOTTOM,
+      AppHelpers.showSnackBar(
+        title: 'Error',
+        message: 'Failed to open chat',
+        isError: true,
       );
     } finally {
       isLoading.value = false;
@@ -124,17 +125,17 @@ class ChatListController extends GetxController {
         conversationId,
         !currentMuteStatus,
       );
-      Get.snackbar(
-        'Success',
-        currentMuteStatus ? 'Conversation unmuted' : 'Conversation muted',
-        snackPosition: SnackPosition.BOTTOM,
+      AppHelpers.showSnackBar(
+        title: 'Success',
+        message: currentMuteStatus ? 'Conversation unmuted' : 'Conversation muted',
+        isError: false,
       );
     } catch (error) {
       debugPrint('ChatListController.toggleMute error: $error');
-      Get.snackbar(
-        'Error',
-        'Failed to update conversation',
-        snackPosition: SnackPosition.BOTTOM,
+      AppHelpers.showSnackBar(
+        title: 'Error',
+        message: 'Failed to update conversation',
+        isError: true,
       );
     }
   }
@@ -148,19 +149,19 @@ class ChatListController extends GetxController {
         conversationId,
         !currentArchiveStatus,
       );
-      Get.snackbar(
-        'Success',
-        currentArchiveStatus
+      AppHelpers.showSnackBar(
+        title: 'Success',
+        message: currentArchiveStatus
             ? 'Conversation unarchived'
             : 'Conversation archived',
-        snackPosition: SnackPosition.BOTTOM,
+        isError: false,
       );
     } catch (error) {
       debugPrint('ChatListController.toggleArchive error: $error');
-      Get.snackbar(
-        'Error',
-        'Failed to update conversation',
-        snackPosition: SnackPosition.BOTTOM,
+      AppHelpers.showSnackBar(
+        title: 'Error',
+        message: 'Failed to update conversation',
+        isError: true,
       );
     }
   }

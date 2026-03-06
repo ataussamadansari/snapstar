@@ -31,7 +31,7 @@ class SplashController extends GetxController {
       final profile = await _userRepo.fetchProfile(userId);
 
       if (profile == null) {
-        Get.offAllNamed(Routes.signup);
+        Get.offAllNamed(Routes.profileSetup);
         return;
       }
 

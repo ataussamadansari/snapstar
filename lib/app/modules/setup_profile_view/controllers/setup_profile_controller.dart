@@ -8,6 +8,7 @@ import 'package:snapstar_app/app/core/utils/avatar_cropper.dart';
 import 'package:snapstar_app/app/routes/app_routes.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../data/models/user_model.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/user_repository.dart';
 
@@ -74,6 +75,35 @@ class SetupProfileController extends GetxController {
           userId: userId,
           file: profileImage.value!,
           folder: 'profiles',
+        );
+      }
+
+      final existingProfile = await _userRepo.fetchProfile(userId);
+      if (existingProfile == null) {
+        final now = DateTime.now();
+        final authUser = _authRepo.currentUser;
+        final fallbackName =
+            authUser?.userMetadata?['name']?.toString().trim().isNotEmpty ==
+                true
+            ? authUser!.userMetadata!['name'].toString().trim()
+            : (authUser?.email?.split('@').first ?? 'Snapstar user');
+
+        await _userRepo.createProfile(
+          UserModel(
+            id: userId,
+            name: fallbackName,
+            username: '',
+            email: authUser?.email ?? '',
+            phone: null,
+            avatarUrl: null,
+            bio: null,
+            role: 'user',
+            postsCount: 0,
+            subscriberCount: 0,
+            subscribingCount: 0,
+            createdAt: now,
+            updatedAt: now,
+          ),
         );
       }
 

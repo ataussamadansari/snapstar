@@ -55,6 +55,7 @@ class UserModel {
 
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'name': name,
       'username': username,
       'email': email,
@@ -62,7 +63,11 @@ class UserModel {
       'avatar_url': avatarUrl,
       'bio': bio,
       'role': role,
-      'updated_at': DateTime.now().toIso8601String(),
+      'posts_count': postsCount,
+      'subscriber_count': subscriberCount,
+      'subscribing_count': subscribingCount,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
     };
   }
 }

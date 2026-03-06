@@ -20,26 +20,19 @@ class SignupScreen extends GetView<SignupController> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-
                   const SizedBox(height: 40),
 
                   /// TITLE
                   const Text(
                     "Create Account",
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                   ),
 
                   const SizedBox(height: 6),
 
                   Text(
                     "Join SnapStar and start sharing moments",
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                   ),
 
                   const SizedBox(height: 32),
@@ -49,8 +42,9 @@ class SignupScreen extends GetView<SignupController> {
                     controller: controller.nameCtrl,
                     label: "Name",
                     icon: Icons.person_outline,
-                    validator: (v) =>
-                    v == null || v.trim().isEmpty ? "Name is required" : null,
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? "Name is required"
+                        : null,
                   ),
 
                   const SizedBox(height: 16),
@@ -75,85 +69,91 @@ class SignupScreen extends GetView<SignupController> {
                   const SizedBox(height: 16),
 
                   /// PASSWORD
-                  Obx(() => _inputField(
-                    controller: controller.passCtrl,
-                    label: "Password",
-                    icon: Icons.lock_outline,
-                    obscure: controller.hidePassword.value,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        controller.hidePassword.value
-                            ? Icons.visibility_off
-                            : Icons.visibility,
+                  Obx(
+                    () => _inputField(
+                      controller: controller.passCtrl,
+                      label: "Password",
+                      icon: Icons.lock_outline,
+                      obscure: controller.hidePassword.value,
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          controller.hidePassword.value
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                        ),
+                        onPressed: controller.togglePassword,
                       ),
-                      onPressed: controller.togglePassword,
+                      validator: (v) {
+                        if (v == null || v.isEmpty) {
+                          return "Password required";
+                        }
+                        if (v.length < 6) {
+                          return "Minimum 6 characters";
+                        }
+                        return null;
+                      },
                     ),
-                    validator: (v) {
-                      if (v == null || v.isEmpty) {
-                        return "Password required";
-                      }
-                      if (v.length < 6) {
-                        return "Minimum 6 characters";
-                      }
-                      return null;
-                    },
-                  )),
+                  ),
 
                   const SizedBox(height: 16),
 
                   /// CONFIRM PASSWORD
-                  Obx(() => _inputField(
-                    controller: controller.cPassCtrl,
-                    label: "Confirm Password",
-                    icon: Icons.lock_outline,
-                    obscure: controller.hideCPassword.value,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        controller.hideCPassword.value
-                            ? Icons.visibility_off
-                            : Icons.visibility,
+                  Obx(
+                    () => _inputField(
+                      controller: controller.cPassCtrl,
+                      label: "Confirm Password",
+                      icon: Icons.lock_outline,
+                      obscure: controller.hideCPassword.value,
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          controller.hideCPassword.value
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                        ),
+                        onPressed: controller.toggleCPassword,
                       ),
-                      onPressed: controller.toggleCPassword,
+                      validator: (v) {
+                        if (v == null || v.isEmpty) {
+                          return "Confirm password required";
+                        }
+                        if (v != controller.passCtrl.text) {
+                          return "Passwords do not match";
+                        }
+                        return null;
+                      },
                     ),
-                    validator: (v) {
-                      if (v == null || v.isEmpty) {
-                        return "Confirm password required";
-                      }
-                      if (v != controller.passCtrl.text) {
-                        return "Passwords do not match";
-                      }
-                      return null;
-                    },
-                  )),
+                  ),
 
                   const SizedBox(height: 30),
 
                   /// BUTTON
-                  Obx(() => SizedBox(
-                    height: 50,
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: controller.isLoading.value
-                          ? null
-                          : controller.submit,
-                      style: ElevatedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                  Obx(
+                    () => SizedBox(
+                      height: 50,
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: controller.isLoading.value
+                            ? null
+                            : controller.submit,
+                        style: ElevatedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
-                      ),
-                      child: controller.isLoading.value
-                          ? const CircularProgressIndicator(
-                        color: Colors.white,
-                      )
-                          : const Text(
-                        "Next",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        child: controller.isLoading.value
+                            ? const CircularProgressIndicator(
+                                color: Colors.white,
+                              )
+                            : const Text(
+                                "Next",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                       ),
                     ),
-                  )),
+                  ),
 
                   const SizedBox(height: 20),
 
@@ -192,12 +192,8 @@ class SignupScreen extends GetView<SignupController> {
         labelText: label,
         prefixIcon: Icon(icon),
         suffixIcon: suffixIcon,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }
 }
-
-

@@ -18,26 +18,17 @@ class LoginScreen extends GetView<LoginController> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
                 const SizedBox(height: 40),
 
                 /// TITLE
                 const Text(
                   "Welcome Back",
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                 ),
 
                 const SizedBox(height: 6),
 
-                Text(
-                  "Login to continue",
-                  style: TextStyle(
-                    color: Colors.grey,
-                  ),
-                ),
+                Text("Login to continue", style: TextStyle(color: Colors.grey)),
 
                 const SizedBox(height: 32),
 
@@ -63,59 +54,62 @@ class LoginScreen extends GetView<LoginController> {
                 const SizedBox(height: 16),
 
                 /// PASSWORD
-                Obx(() => TextFormField(
-                  controller: controller.passCtrl,
-                  obscureText: controller.hidePassword.value,
-                  decoration: InputDecoration(
-                    labelText: "Password",
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        controller.hidePassword.value
-                            ? Icons.visibility_off
-                            : Icons.visibility,
+                Obx(
+                  () => TextFormField(
+                    controller: controller.passCtrl,
+                    obscureText: controller.hidePassword.value,
+                    decoration: InputDecoration(
+                      labelText: "Password",
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          controller.hidePassword.value
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                        ),
+                        onPressed: controller.togglePassword,
                       ),
-                      onPressed: controller.togglePassword,
                     ),
+                    validator: (v) {
+                      if (v == null || v.isEmpty) {
+                        return "Password required";
+                      }
+                      return null;
+                    },
                   ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) {
-                      return "Password required";
-                    }
-                    return null;
-                  },
-                )),
+                ),
 
                 const SizedBox(height: 30),
 
                 /// LOGIN BUTTON
-                Obx(() => SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed:
-                    controller.isLoading.value ? null : controller.login,
-                    child: controller.isLoading.value
-                        ? const CircularProgressIndicator(
-                      color: Colors.white,
-                    )
-                        : const Text(
-                      "Login",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                Obx(
+                  () => SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: controller.isLoading.value
+                          ? null
+                          : controller.login,
+                      child: controller.isLoading.value
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                              "Login",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                     ),
                   ),
-                )),
+                ),
 
                 const SizedBox(height: 20),
 
                 /// SIGNUP LINK
                 Center(
                   child: TextButton(
-                    onPressed: () => Get.toNamed(Routes.signup),
-                    child: const Text("Don’t have an account? Sign up"),
+                    onPressed: () => Get.offNamed(Routes.signup),
+                    child: const Text("Don't have an account? Sign up"),
                   ),
                 ),
               ],

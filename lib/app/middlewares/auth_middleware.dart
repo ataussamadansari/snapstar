@@ -29,7 +29,11 @@ class AuthMiddleware extends GetMiddleware {
       final profile = await _userRepo.fetchProfile(userId);
 
       if (profile == null) {
-        return GetNavConfig.fromRoute(Routes.signup);
+        final currentPath = route.uri.path;
+        if (currentPath != Routes.profileSetup) {
+          return GetNavConfig.fromRoute(Routes.profileSetup);
+        }
+        return route;
       }
 
       if (profile.username.trim().isEmpty) {

@@ -58,17 +58,20 @@ class _ReelsScreenState extends State<ReelsScreen> {
         if (_controller.reels.isEmpty) {
           return RefreshIndicator(
             onRefresh: _controller.refreshReels,
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: const [
-                SizedBox(height: 200),
-                Center(
-                  child: Text(
-                    'No reels available right now',
-                    style: TextStyle(color: Colors.white),
+            child: SafeArea(
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(height: 160),
+                  Center(
+                    child: Text(
+                      'No reels available right now',
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
-                ),
-              ],
+                  SizedBox(height: 24),
+                ],
+              ),
             ),
           );
         }
@@ -98,11 +101,17 @@ class _ReelsScreenState extends State<ReelsScreen> {
               ),
             ),
             if (_controller.isLoadingMore.value)
-              const Positioned(
+              Positioned(
                 left: 0,
                 right: 0,
-                bottom: 24,
-                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                bottom: 0,
+                child: const SafeArea(
+                  top: false,
+                  minimum: EdgeInsets.only(bottom: 24),
+                  child: Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
               ),
           ],
         );
@@ -413,27 +422,25 @@ class _ReelViewState extends State<_ReelView>
           ),
         ),
         const SizedBox(height: 18),
-        Obx(
-          () {
-            final shareCount = _shareController.shareCount(_post.id);
-            return _ActionButton(
-              hugeIcon: HugeIcons.strokeRoundedShare01,
-              color: _shareController.isSharing(_post.id)
-                  ? Colors.lightBlueAccent
-                  : Colors.white,
-              count: shareCount > 0 ? NumberFormatter.format(shareCount) : null,
-              onTap: () {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  useSafeArea: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (_) => SharePostBottomSheet(post: _post),
-                );
-              },
-            );
-          },
-        ),
+        Obx(() {
+          final shareCount = _shareController.shareCount(_post.id);
+          return _ActionButton(
+            hugeIcon: HugeIcons.strokeRoundedShare01,
+            color: _shareController.isSharing(_post.id)
+                ? Colors.lightBlueAccent
+                : Colors.white,
+            count: shareCount > 0 ? NumberFormatter.format(shareCount) : null,
+            onTap: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                useSafeArea: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => SharePostBottomSheet(post: _post),
+              );
+            },
+          );
+        }),
         const SizedBox(height: 18),
         Container(
           width: 30,

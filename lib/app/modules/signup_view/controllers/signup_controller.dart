@@ -73,6 +73,14 @@ class SignupController extends GetxController {
         Get.offAllNamed(Routes.profileSetup);
       }
     } on AuthApiException catch (e) {
+      if (e.code == 'user_already_exists') {
+        AppHelpers.showSnackBar(
+          title: 'Account already exists',
+          message: 'Please login with this email.',
+        );
+        Get.offAllNamed(Routes.login);
+        return;
+      }
       AppHelpers.showSnackBar(title: 'SignUp Error', message: e.message);
       debugPrint('SignUp Failed: $e');
     } catch (e) {

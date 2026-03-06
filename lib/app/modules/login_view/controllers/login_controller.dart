@@ -42,7 +42,7 @@ class LoginController extends GetxController {
       final profile = await _userRepo.fetchProfile(userId);
 
       if (profile == null) {
-        Get.offAllNamed(Routes.signup);
+        Get.offAllNamed(Routes.profileSetup);
         return;
       }
 
@@ -54,22 +54,13 @@ class LoginController extends GetxController {
       Get.offAllNamed(Routes.main);
     } on PostgrestException catch (e) {
       debugPrint('Login Failed: $e');
-      AppHelpers.showSnackBar(
-        title: 'Login Failed',
-        message: e.message,
-      );
+      AppHelpers.showSnackBar(title: 'Login Failed', message: e.message);
     } on AuthException catch (e) {
       debugPrint('Login Failed: $e');
-      AppHelpers.showSnackBar(
-        title: 'Login Failed',
-        message: e.message,
-      );
+      AppHelpers.showSnackBar(title: 'Login Failed', message: e.message);
     } catch (e) {
       debugPrint('Login Failed: $e');
-      AppHelpers.showSnackBar(
-        title: 'Error',
-        message: e.toString(),
-      );
+      AppHelpers.showSnackBar(title: 'Error', message: e.toString());
     } finally {
       isLoading.value = false;
     }

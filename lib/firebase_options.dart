@@ -51,7 +51,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyAcZ_-dg0L2hEhZVCGCXyod8XuQBQYrWfY',
-    appId: '1:625297648979:android:ab409d5e57b056962d85a6',
+    appId: '1:625297648979:android:3059f912f8e64d842d85a6',
     messagingSenderId: '625297648979',
     projectId: 'adroit-hall-451612-t1',
     storageBucket: 'adroit-hall-451612-t1.firebasestorage.app',
@@ -59,7 +59,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBpKsS5WRhWftB-ofQVb9nCA28e3l0C0rg',
-    appId: '1:625297648979:ios:b4a9efa84eeb28482d85a6',
+    appId: '1:625297648979:ios:216acc1328bd4c692d85a6',
     messagingSenderId: '625297648979',
     projectId: 'adroit-hall-451612-t1',
     storageBucket: 'adroit-hall-451612-t1.firebasestorage.app',

@@ -61,7 +61,6 @@ class _SuggestedUserListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final avatarUrl = user.avatarUrl;
-    final hasAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
     final displayName = user.name.trim().isEmpty ? user.username : user.name;
 
     return InkWell(

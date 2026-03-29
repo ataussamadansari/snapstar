@@ -1,3 +1,4 @@
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -14,11 +15,13 @@ class MyApp extends StatelessWidget {
     return GetMaterialApp(
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
-        // darkTheme: AppTheme.dark,
         themeMode: ThemeMode.light,
         initialRoute: Routes.splash,
         getPages: AppPages.routes,
-        initialBinding: AppBindings()
+        initialBinding: AppBindings(),
+        navigatorObservers: [
+          FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance),
+        ],
     );
   }
 }

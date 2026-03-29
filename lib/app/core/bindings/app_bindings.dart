@@ -28,6 +28,7 @@ import 'package:snapstar_app/app/data/services/auth_service.dart';
 import 'package:snapstar_app/app/data/services/comment_service.dart';
 import 'package:snapstar_app/app/data/services/fcm_service.dart';
 import 'package:snapstar_app/app/data/services/shorebird_service.dart';
+import 'package:snapstar_app/app/data/services/analytics_service.dart';
 import 'package:snapstar_app/app/data/services/like_service.dart';
 import 'package:snapstar_app/app/data/services/local_cache_service.dart';
 import 'package:snapstar_app/app/data/services/notification_service.dart';
@@ -205,5 +206,6 @@ class AppBindings extends Bindings {
       permanent: true,
     );
     Get.put<ShorebirdService>(ShorebirdService(), permanent: true);
+    Get.put<AnalyticsService>(AnalyticsService(), permanent: true);
   }
 }

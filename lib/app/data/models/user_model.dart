@@ -7,6 +7,7 @@ class UserModel {
   final String? avatarUrl;
   final String? bio;
   final String? role;
+  final bool isAnonymous;
 
   final int postsCount;
   final int subscriberCount;
@@ -24,6 +25,7 @@ class UserModel {
     this.avatarUrl,
     this.bio,
     this.role,
+    this.isAnonymous = false,
     required this.postsCount,
     required this.subscriberCount,
     required this.subscribingCount,
@@ -41,6 +43,7 @@ class UserModel {
       avatarUrl: json['avatar_url'],
       bio: json['bio'],
       role: json['role'],
+      isAnonymous: json['is_anonymous'] == true,
       postsCount: json['posts_count'] ?? 0,
       subscriberCount: json['subscriber_count'] ?? 0,
       subscribingCount: json['subscribing_count'] ?? 0,
@@ -54,15 +57,18 @@ class UserModel {
   }
 
   Map<String, dynamic> toJson() {
+    final normalizedEmail = email.trim().isEmpty ? null : email.trim();
+
     return {
       'id': id,
       'name': name,
       'username': username,
-      'email': email,
+      'email': normalizedEmail,
       'phone': phone,
       'avatar_url': avatarUrl,
       'bio': bio,
       'role': role,
+      'is_anonymous': isAnonymous,
       'posts_count': postsCount,
       'subscriber_count': subscriberCount,
       'subscribing_count': subscribingCount,

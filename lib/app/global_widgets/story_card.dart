@@ -8,6 +8,7 @@ import 'package:snapstar_app/app/core/utils/auth_helper.dart';
 import '../data/controllers/story_controller.dart';
 import '../data/controllers/post_story_style_controller.dart';
 import '../data/models/story_model.dart';
+import 'app_avatar.dart';
 
 class StoryCard extends StatelessWidget {
   final String name;
@@ -72,15 +73,13 @@ class StoryCard extends StatelessWidget {
                             )
                           : null,
                     ),
-                    child: CircleAvatar(
+                    child: AppAvatar(
                       radius: avatarRadius,
+                      avatarUrl: imageUrl,
                       backgroundColor: isDark
                           ? Colors.grey.shade800
                           : Colors.grey.shade200,
-                      backgroundImage:
-                          (imageUrl != null && imageUrl!.isNotEmpty)
-                          ? NetworkImage(imageUrl!)
-                          : const AssetImage("assets/images/default_user.png"),
+                      iconColor: isDark ? Colors.white : Colors.black54,
                     ),
                   ),
 

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:video_player/video_player.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import 'package:snapstar_app/app/core/utils/date_time_extension.dart';
+import 'package:snapstar_app/app/core/utils/video_cache_manager.dart';
+import 'package:snapstar_app/app/global_widgets/app_avatar.dart';
 
 import '../../../data/models/story_model.dart';
 import '../controllers/story_viewer_controller.dart';
@@ -103,22 +106,11 @@ class StoryViewerScreen extends GetView<StoryViewerController> {
                         const SizedBox(height: 10),
                         Row(
                           children: [
-                            CircleAvatar(
+                            AppAvatar(
                               radius: 18,
+                              avatarUrl: story.user?.avatarUrl,
                               backgroundColor: Colors.grey.shade800,
-                              backgroundImage:
-                                  (story.user?.avatarUrl != null &&
-                                      story.user!.avatarUrl!.isNotEmpty)
-                                  ? NetworkImage(story.user!.avatarUrl!)
-                                  : null,
-                              child:
-                                  (story.user?.avatarUrl == null ||
-                                      story.user!.avatarUrl!.isEmpty)
-                                  ? const Icon(
-                                      Icons.person,
-                                      color: Colors.white,
-                                    )
-                                  : null,
+                              iconColor: Colors.white,
                             ),
                             const SizedBox(width: 10),
                             Column(
@@ -255,6 +247,7 @@ class _StoryMedia extends StatefulWidget {
 }
 
 class _StoryMediaState extends State<_StoryMedia> {
+  static final Set<String> _queuedDownloads = <String>{};
   VideoPlayerController? _videoController;
   bool _isVideoInitialized = false;
   bool _videoHasError = false;
@@ -263,6 +256,7 @@ class _StoryMediaState extends State<_StoryMedia> {
   bool _imageHasError = false;
   bool _readyDispatched = false;
   bool _lastVideoBuffering = false;
+  int _controllerVersion = 0;
 
   bool get _isVideo {
     if (widget.story.mediaTypes.isNotEmpty) {
@@ -315,42 +309,71 @@ class _StoryMediaState extends State<_StoryMedia> {
       return;
     }
 
+    final currentVersion = ++_controllerVersion;
+    VideoPlayerController? nextController;
+
     try {
       _videoHasError = false;
       _isVideoInitialized = false;
       _completionSent = false;
-
-      _videoController = VideoPlayerController.networkUrl(
-        Uri.parse(widget.story.mediaUrls.first),
+      final videoUrl = widget.story.mediaUrls.first;
+      final fileInfo = await VideoCacheManager.instance.getFileFromCache(
+        videoUrl,
       );
 
-      await _videoController!.initialize();
-      await _videoController!.setLooping(false);
-
-      _videoController!.addListener(_onVideoTick);
-
-      if (widget.isPaused) {
-        await _videoController!.pause();
+      if (fileInfo != null) {
+        nextController = VideoPlayerController.file(fileInfo.file);
       } else {
-        await _videoController!.play();
+        nextController = VideoPlayerController.networkUrl(
+          Uri.parse(videoUrl),
+        );
+        _queueDownload(videoUrl);
       }
 
-      if (!mounted) {
+      await nextController.initialize();
+      await nextController.setLooping(false);
+
+      if (!mounted || currentVersion != _controllerVersion) {
+        await nextController.dispose();
         return;
+      }
+
+      if (widget.isPaused) {
+        await nextController.pause();
+      } else {
+        await nextController.play();
+      }
+
+      final previousController = _videoController;
+      _videoController = nextController;
+      _videoController!.addListener(_onVideoTick);
+
+      if (previousController != null && previousController != nextController) {
+        previousController.removeListener(_onVideoTick);
+        await previousController.pause();
+        await previousController.dispose();
       }
 
       setState(() {
         _isVideoInitialized = true;
+        _videoHasError = false;
       });
       _dispatchReadyOnce();
       widget.onBufferingChanged(false);
     } catch (_) {
+      if (nextController != null) {
+        await nextController.dispose();
+      }
+      if (!mounted || currentVersion != _controllerVersion) {
+        return;
+      }
       if (!mounted) {
         return;
       }
 
       setState(() {
         _videoHasError = true;
+        _isVideoInitialized = false;
       });
       widget.onBufferingChanged(false);
       widget.onMediaLoadError();
@@ -386,9 +409,33 @@ class _StoryMediaState extends State<_StoryMedia> {
   }
 
   void _disposeVideo() {
-    _videoController?.removeListener(_onVideoTick);
-    _videoController?.dispose();
+    _controllerVersion++;
+    final controller = _videoController;
     _videoController = null;
+    if (controller == null) {
+      return;
+    }
+
+    controller.removeListener(_onVideoTick);
+    controller.pause();
+    controller.dispose();
+  }
+
+  void _queueDownload(String url) {
+    if (_queuedDownloads.contains(url)) {
+      return;
+    }
+
+    _queuedDownloads.add(url);
+    _downloadForCache(url);
+  }
+
+  Future<void> _downloadForCache(String url) async {
+    try {
+      await VideoCacheManager.instance.downloadFile(url);
+    } catch (_) {
+      _queuedDownloads.remove(url);
+    }
   }
 
   @override
@@ -409,29 +456,34 @@ class _StoryMediaState extends State<_StoryMedia> {
       return Stack(
         fit: StackFit.expand,
         children: [
-          Image.network(
-            widget.story.mediaUrls.first,
+          CachedNetworkImage(
+            imageUrl: widget.story.mediaUrls.first,
             fit: BoxFit.cover,
             width: double.infinity,
             height: double.infinity,
-            frameBuilder: (_, child, frame, wasSynchronouslyLoaded) {
-              final hasFrame = wasSynchronouslyLoaded || frame != null;
-              if (hasFrame && !_isImageLoaded && !_imageHasError) {
+            imageBuilder: (context, imageProvider) {
+              if (!_isImageLoaded && !_imageHasError) {
                 _isImageLoaded = true;
                 widget.onBufferingChanged(false);
                 _dispatchReadyOnce();
               }
-              return child;
+
+              return Image(
+                image: imageProvider,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+              );
             },
-            loadingBuilder: (_, child, loadingProgress) {
-              if (loadingProgress != null &&
-                  !_imageHasError &&
-                  !_isImageLoaded) {
+            placeholder: (context, url) {
+              if (!_imageHasError && !_isImageLoaded) {
                 widget.onBufferingChanged(true);
               }
-              return child;
+              return const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              );
             },
-            errorBuilder: (_, __, ___) {
+            errorWidget: (context, url, error) {
               if (!_imageHasError) {
                 _imageHasError = true;
                 widget.onBufferingChanged(false);
@@ -447,7 +499,9 @@ class _StoryMediaState extends State<_StoryMedia> {
             },
           ),
           if (!_isImageLoaded && !_imageHasError)
-            const Center(child: CircularProgressIndicator(color: Colors.white)),
+            const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            ),
         ],
       );
     }

@@ -5,7 +5,9 @@ import '../../../core/utils/reels_navigation_helper.dart';
 import '../../../data/models/post_model.dart';
 import '../../post_view/views/post_detail_screen.dart';
 import '../../../data/models/user_model.dart';
+import '../../../global_widgets/app_avatar.dart';
 import '../../../global_widgets/loading_skeleton.dart';
+import '../../../global_widgets/app_cached_image.dart';
 import '../../../global_widgets/subscribe_button.dart';
 import '../../../routes/app_routes.dart';
 import '../controllers/search_controller.dart';
@@ -122,6 +124,7 @@ class SearchScreen extends GetView<SearchsController> {
     }
 
     final suggestedUsers = controller.suggestedUsers.take(8).toList();
+    final suggestedHashtags = controller.suggestedHashtags.take(6).toList();
 
     return RefreshIndicator(
       onRefresh: controller.refreshCurrent,
@@ -129,14 +132,26 @@ class SearchScreen extends GetView<SearchsController> {
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           if (suggestedUsers.isNotEmpty)
-            const SliverToBoxAdapter(
-              child: _SectionTitle(title: 'Suggested people'),
+            SliverToBoxAdapter(
+              child: _SectionTitle(
+                title: 'Suggested people',
+                actionLabel: 'See all',
+                onActionPressed: () =>
+                    Get.toNamed(Routes.searchSuggestedUsers),
+              ),
             ),
           if (suggestedUsers.isNotEmpty)
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) => _UserListItem(user: suggestedUsers[index]),
-                childCount: suggestedUsers.length,
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 198,
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  scrollDirection: Axis.horizontal,
+                  itemCount: suggestedUsers.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (context, index) =>
+                      _SuggestedUserCard(user: suggestedUsers[index]),
+                ),
               ),
             ),
           if (controller.suggestedPosts.isNotEmpty)
@@ -161,16 +176,21 @@ class SearchScreen extends GetView<SearchsController> {
                 ),
               ),
             ),
-          if (controller.suggestedHashtags.isNotEmpty)
-            const SliverToBoxAdapter(
-              child: _SectionTitle(title: 'Trending hashtags'),
+          if (suggestedHashtags.isNotEmpty)
+            SliverToBoxAdapter(
+              child: _SectionTitle(
+                title: 'Trending hashtags',
+                actionLabel: 'Show more',
+                onActionPressed: () =>
+                    Get.toNamed(Routes.searchSuggestedHashtags),
+              ),
             ),
-          if (controller.suggestedHashtags.isNotEmpty)
+          if (suggestedHashtags.isNotEmpty)
             SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) =>
-                    _HashtagListItem(tag: controller.suggestedHashtags[index]),
-                childCount: controller.suggestedHashtags.length,
+                    _HashtagListItem(tag: suggestedHashtags[index]),
+                childCount: suggestedHashtags.length,
               ),
             ),
         ],
@@ -180,17 +200,108 @@ class SearchScreen extends GetView<SearchsController> {
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title});
+  const _SectionTitle({
+    required this.title,
+    this.actionLabel,
+    this.onActionPressed,
+  });
 
   final String title;
+  final String? actionLabel;
+  final VoidCallback? onActionPressed;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-      child: Text(
-        title,
-        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+            ),
+          ),
+          if (actionLabel != null && onActionPressed != null)
+            TextButton(
+              onPressed: onActionPressed,
+              child: Text(actionLabel!),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SuggestedUserCard extends StatelessWidget {
+  const _SuggestedUserCard({required this.user});
+
+  final UserModel user;
+
+  @override
+  Widget build(BuildContext context) {
+    final avatarUrl = user.avatarUrl;
+    final displayName = user.name.trim().isEmpty ? user.username : user.name;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: () => Get.toNamed(Routes.userProfile, arguments: user.id),
+      child: Container(
+        width: 150,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.15),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            AppAvatar(
+              radius: 30,
+              avatarUrl: avatarUrl,
+              backgroundColor: Colors.grey.shade200,
+              iconColor: Colors.grey.shade600,
+              iconSize: 28,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              displayName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '@${user.username}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const Spacer(),
+            SizedBox(
+              width: double.infinity,
+              child: SubscriberButton(
+                userId: user.id,
+                fullWidth: true,
+                height: 36,
+                borderRadius: 10,
+                fontSize: 13,
+                horizontalPadding: const EdgeInsets.symmetric(horizontal: 10),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -204,7 +315,6 @@ class _UserListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final avatarUrl = user.avatarUrl;
-    final hasAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
     final displayName = user.name.trim().isEmpty ? user.username : user.name;
 
     return InkWell(
@@ -213,13 +323,11 @@ class _UserListItem extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
           children: [
-            CircleAvatar(
+            AppAvatar(
               radius: 22,
+              avatarUrl: avatarUrl,
               backgroundColor: Colors.grey.shade200,
-              backgroundImage: hasAvatar ? NetworkImage(avatarUrl) : null,
-              child: hasAvatar
-                  ? null
-                  : Icon(Icons.person, color: Colors.grey.shade600),
+              iconColor: Colors.grey.shade600,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -297,7 +405,7 @@ class _PostListItem extends StatelessWidget {
                             : Icons.image_outlined,
                         color: Colors.grey.shade600,
                       )
-                    : Image.network(previewUrl, fit: BoxFit.cover),
+                    : AppCachedImage(imageUrl: previewUrl, fit: BoxFit.cover),
               ),
             ),
             const SizedBox(width: 12),
@@ -364,10 +472,10 @@ class _SuggestedPostTile extends StatelessWidget {
         children: [
           Container(color: Colors.grey.shade200),
           if (previewUrl != null)
-            Image.network(
-              previewUrl,
+            AppCachedImage(
+              imageUrl: previewUrl,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Icon(
+              errorWidget: Icon(
                 isVideo ? Icons.play_circle_outline : Icons.image_outlined,
                 color: Colors.grey.shade600,
               ),

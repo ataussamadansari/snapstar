@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:snapstar_app/app/core/utils/auth_helper.dart';
 
 import '../models/comment_model.dart';
 import '../repositories/comment_repository.dart';
@@ -49,6 +50,11 @@ class CommentController extends GetxController {
     required String text,
     String? parentId,
   }) async {
+    // Requirement 5: Route Protection / Action Guard
+    if (!AuthHelper.checkAuthAndShowModal(message: "Login with Google to join the conversation!")) {
+      return;
+    }
+
     try {
       await _repository.addCommentForCurrentUser(
         postId: postId,

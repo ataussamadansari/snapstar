@@ -29,6 +29,7 @@ class ReelsController extends GetxController {
   final int _pageSize = 10;
   DateTime? _cursorCreatedAt;
   String? _cursorId;
+  double? _cursorScore;
   int _reelsSessionSalt = DateTime.now().millisecondsSinceEpoch;
   final Set<String> _prefetchedUrls = <String>{};
   bool _isScopedMode = false;
@@ -55,6 +56,7 @@ class ReelsController extends GetxController {
 
     _cursorCreatedAt = null;
     _cursorId = null;
+    _cursorScore = null;
     _reelsSessionSalt = DateTime.now().microsecondsSinceEpoch;
     hasMore.value = true;
     currentPage.value = 0;
@@ -73,6 +75,7 @@ class ReelsController extends GetxController {
     if (refresh) {
       _cursorCreatedAt = null;
       _cursorId = null;
+      _cursorScore = null;
       hasMore.value = true;
     }
 
@@ -93,6 +96,7 @@ class ReelsController extends GetxController {
         limit: _pageSize,
         cursorCreatedAt: _cursorCreatedAt,
         cursorId: _cursorId,
+        cursorScore: _cursorScore,
       );
       final fetched = page.items;
       final prepared = isFirstPage ? _diversifyReels(fetched) : fetched;
@@ -108,6 +112,7 @@ class ReelsController extends GetxController {
       hasMore.value = page.hasMore;
       _cursorCreatedAt = page.nextCursorCreatedAt;
       _cursorId = page.nextCursorId;
+      _cursorScore = page.nextCursorScore;
       _persistCache();
 
       _prefetchAround(currentPage.value);

@@ -25,21 +25,24 @@ class PostDetailScreen extends StatefulWidget {
 class _PostDetailScreenState extends State<PostDetailScreen> {
   late ScrollController _scrollController;
   late int _currentIndex;
+  late List<PostModel> _displayPosts;
 
   /// keys used to scroll/measure individual list items when opening the
   /// detail screen from a feed.
   late List<GlobalKey> _itemKeys;
 
-  List<PostModel> get _posts => widget.posts ?? [widget.post!];
-
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.initialIndex;
+    _displayPosts = _buildDisplayPosts();
+    _currentIndex = 0;
     _scrollController = ScrollController();
 
     // prepare keys for each post so we can scroll/measure later
-    _itemKeys = List<GlobalKey>.generate(_posts.length, (_) => GlobalKey());
+    _itemKeys = List<GlobalKey>.generate(
+      _displayPosts.length,
+      (_) => GlobalKey(),
+    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToInitial();
@@ -47,6 +50,23 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
     // install scroll listener after first frame so context is available
     _scrollController.addListener(_updateCurrentIndexByPosition);
+  }
+
+  List<PostModel> _buildDisplayPosts() {
+    final posts = widget.posts;
+    if (posts == null || posts.isEmpty) {
+      return [widget.post!];
+    }
+
+    final safeIndex = widget.initialIndex.clamp(0, posts.length - 1);
+    if (safeIndex == 0) {
+      return posts;
+    }
+
+    return <PostModel>[
+      ...posts.skip(safeIndex),
+      ...posts.take(safeIndex),
+    ];
   }
 
   void _scrollToInitial() {
@@ -94,20 +114,19 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         title: const Text("Posts"),
       ),
       body: SafeArea(
-        child: ListView.builder(
+        child: ListView(
           controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
-          itemCount: _posts.length,
-          itemBuilder: (context, index) {
+          children: List<Widget>.generate(_displayPosts.length, (index) {
             return Container(
               key: _itemKeys[index],
               child: PostCard(
-                post: _posts[index],
+                post: _displayPosts[index],
                 allowReelsNavigation: false,
-                feedPosts: widget.posts,
+                feedPosts: _displayPosts,
               ),
             );
-          },
+          }),
         ),
       ),
     );

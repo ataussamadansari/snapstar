@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:snapstar_app/app/core/utils/auth_helper.dart';
 import 'package:snapstar_app/app/core/utils/helpers.dart';
 
 import '../../../data/models/conversation_model.dart';
@@ -47,11 +48,6 @@ class ChatDetailController extends GetxController {
     _scheduleMarkAsRead();
   }
 
-  /*Future<void> _fetchConversation() async {
-    final conv = await _chatRepo.fetchConversation(conversationId);
-    conversation.value = conv;
-  }*/
-
   Future<void> _fetchConversation() async {
     try {
       isLoading.value = true;
@@ -63,32 +59,6 @@ class ChatDetailController extends GetxController {
       isLoading.value = false;
     }
   }
-
-  /*void _watchMessages() {
-    _messagesSub = _chatRepo
-        .watchMessages(conversationId)
-        .listen(
-          (data) {
-            final hadMessages = messages.isNotEmpty;
-            messages.assignAll(data);
-            errorMessage.value = null;
-
-            // Scroll to bottom when new message arrives
-            if (hadMessages && data.length > messages.length) {
-              _scrollToBottom();
-            } else if (!hadMessages && data.isNotEmpty) {
-              // Initial load
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _scrollToBottom(animated: false);
-              });
-            }
-          },
-          onError: (error) {
-            debugPrint('ChatDetailController._watchMessages error: $error');
-            errorMessage.value = 'Failed to load messages';
-          },
-        );
-  }*/
 
   void _watchMessages() {
     isLoading.value = true;
@@ -116,10 +86,16 @@ class ChatDetailController extends GetxController {
 
   Future<void> _markAsRead() async {
     if (messages.isEmpty) return;
+    if (_authRepo.isAnonymous) return; // Anonymous users shouldn't mark as read or might not have permissions
     await _chatRepo.markMessagesRead(conversationId);
   }
 
   Future<void> sendTextMessage() async {
+    // Requirement 2 & 5: Action Guard for Chat
+    if (!AuthHelper.checkAuthAndShowModal(message: "Login with Google to send messages!")) {
+      return;
+    }
+
     final text = messageController.text.trim();
     if (text.isEmpty || isSending.value) return;
 
@@ -143,6 +119,11 @@ class ChatDetailController extends GetxController {
   }
 
   Future<void> sendImageMessage() async {
+     // Requirement 2 & 5: Action Guard
+    if (!AuthHelper.checkAuthAndShowModal(message: "Login with Google to send photos!")) {
+      return;
+    }
+
     try {
       isLoadingMedia.value = true;
       errorMessage.value = null;
@@ -178,6 +159,11 @@ class ChatDetailController extends GetxController {
   }
 
   Future<void> sendVideoMessage() async {
+     // Requirement 2 & 5: Action Guard
+    if (!AuthHelper.checkAuthAndShowModal(message: "Login with Google to send videos!")) {
+      return;
+    }
+
     try {
       isLoadingMedia.value = true;
       errorMessage.value = null;
@@ -213,6 +199,11 @@ class ChatDetailController extends GetxController {
   }
 
   Future<void> sharePost(String postId, String type) async {
+     // Requirement 2 & 5: Action Guard
+    if (!AuthHelper.checkAuthAndShowModal(message: "Login with Google to share posts!")) {
+      return;
+    }
+
     try {
       isSending.value = true;
       errorMessage.value = null;

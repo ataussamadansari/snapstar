@@ -55,5 +55,16 @@
 		<array>
 			<string>remote-notification</string>
 		</array>
+		<key>CFBundleURLTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>com.googleusercontent.apps.625297648979-q4berhu4tg793eehlj127hajcobkatg3</string>
+				</array>
+			</dict>
+		</array>
 	</dict>
 </plist>

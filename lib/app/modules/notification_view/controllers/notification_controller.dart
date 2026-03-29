@@ -300,7 +300,18 @@ class NotificationController extends GetxController {
     final conversationId =
         item['conversation_id']?.toString() ?? item['chat_id']?.toString();
     if (conversationId != null && conversationId.isNotEmpty) {
-      Get.toNamed(Routes.chatDetail, arguments: conversationId);
+      final username =
+          item['username']?.toString() ??
+          item['display_name']?.toString() ??
+          item['title']?.toString() ??
+          'User';
+      Get.toNamed(
+        Routes.chatDetail,
+        arguments: {
+          'conversationId': conversationId,
+          'username': username,
+        },
+      );
       return;
     }
 

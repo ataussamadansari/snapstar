@@ -65,6 +65,7 @@ class SubscriberProvider {
         .from('users')
         .select()
         .neq('id', userId)
+        .eq('is_anonymous', false)
         .range(offset, offset + limit - 1);
 
     return List<Map<String, dynamic>>.from(res);

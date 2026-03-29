@@ -13,6 +13,7 @@ import '../../routes/app_routes.dart';
 import '../controllers/notification_badge_controller.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/post_repository.dart';
+import 'push_notification_dispatcher.dart';
 import '../../modules/post_view/views/post_detail_screen.dart';
 
 const String _kDefaultNotificationChannelId = 'snapstar_notifications';
@@ -55,18 +56,15 @@ class FcmService extends GetxService {
 
   String? _lastSyncedUserId;
   String? _lastSyncedToken;
-  String? _lastAuthUserId;
 
   @override
   void onInit() {
     super.onInit();
-    Future<void>.microtask(_initialize);
+    _initialize();
   }
 
   Future<void> _initialize() async {
-    if (kIsWeb) {
-      return;
-    }
+    if (kIsWeb) return;
 
     try {
       if (Firebase.apps.isEmpty) {
@@ -74,65 +72,109 @@ class FcmService extends GetxService {
           options: DefaultFirebaseOptions.currentPlatform,
         );
       }
-    } catch (error, stackTrace) {
-      debugPrint('FcmService._initialize firebase init error: $error');
-      debugPrint('FcmService._initialize firebase init stack: $stackTrace');
-      return;
-    }
 
-    try {
       await _initializeLocalNotifications();
       await _requestPermissions();
+      
+      // Crucial for foreground notifications on iOS/Android
       await _messaging.setForegroundNotificationPresentationOptions(
         alert: true,
         badge: true,
         sound: true,
       );
 
+      // Listen for token refresh
       _onTokenRefreshSub = _messaging.onTokenRefresh.listen(_persistToken);
-      _onAuthChangedSub = _authRepository.currentUserStream.listen((
-        user,
-      ) async {
-        final previousUserId = _lastAuthUserId;
-        _lastAuthUserId = user?.id;
 
-        if (user == null) {
-          if (previousUserId != null && _lastSyncedToken != null) {
-            await _deactivateToken(previousUserId, _lastSyncedToken!);
+      // Listen for auth changes to sync tokens correctly
+      _onAuthChangedSub = _authRepository.currentUserStream.listen((user) async {
+        if (user != null) {
+          await _syncCurrentToken();
+        } else {
+          // Cleanup on logout
+          if (_lastSyncedToken != null) {
+            await _deactivateToken(_lastSyncedToken!);
           }
           _lastSyncedUserId = null;
           _lastSyncedToken = null;
-          return;
         }
-
-        await _syncCurrentToken();
       });
 
+      // Handle foreground messages
       _onMessageSub = FirebaseMessaging.onMessage.listen((message) async {
+        debugPrint('FCM: Foreground message received: ${message.messageId}');
+        await _saveNotificationToDatabase(message); 
         _refreshNotificationBadge();
         await _showForegroundNotification(message);
       });
 
-      _onMessageOpenedSub = FirebaseMessaging.onMessageOpenedApp.listen(
-        _handleMessageNavigation,
-      );
+      // Handle message clicks
+      _onMessageOpenedSub = FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageNavigation);
 
       final initialMessage = await _messaging.getInitialMessage();
       if (initialMessage != null) {
         _handleMessageNavigation(initialMessage);
       }
 
+      // Initial sync
       await _syncCurrentToken();
+      
+      // Requirement: Handle "All Devices" by subscribing to a topic
+      await _messaging.subscribeToTopic('all_users');
+      debugPrint('FCM: Subscribed to all_users topic');
+
     } catch (error, stackTrace) {
       debugPrint('FcmService._initialize error: $error');
       debugPrint('FcmService._initialize stack: $stackTrace');
     }
   }
 
+  /// Helper to validate UUID
+  bool _isUUID(String? s) {
+    if (s == null) return false;
+    return RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    ).hasMatch(s);
+  }
+
+  Future<void> _saveNotificationToDatabase(RemoteMessage message) async {
+    final userId = _authRepository.currentUserId;
+    if (userId == null) return;
+
+    try {
+      final data = message.data;
+      final persistedNotificationId = data['notification_id']?.toString();
+      if (persistedNotificationId != null && persistedNotificationId.isNotEmpty) {
+        debugPrint('FCM: Notification already persisted as $persistedNotificationId');
+        return;
+      }
+      
+      String? actorId = data['actor_id']?.toString();
+      if (!_isUUID(actorId)) actorId = null;
+      
+      String? postId = data['post_id']?.toString();
+      if (!_isUUID(postId)) postId = null;
+
+      final notificationData = {
+        'user_id': userId,
+        'actor_id': actorId,
+        'post_id': postId,
+        'title': _titleFromMessage(message) ?? 'Notification',
+        'message': _bodyFromMessage(message) ?? '',
+        'type': data['type'] ?? 'activity',
+        'is_read': false,
+        'created_at': DateTime.now().toIso8601String(),
+      };
+
+      await _client.from('notifications').insert(notificationData);
+      debugPrint('FCM: Notification saved to database');
+    } catch (e) {
+      debugPrint('FCM: Failed to save notification to DB: $e');
+    }
+  }
+
   Future<void> _initializeLocalNotifications() async {
-    const androidSettings = AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
-    );
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosSettings = DarwinInitializationSettings();
     const initializationSettings = InitializationSettings(
       android: androidSettings,
@@ -142,222 +184,126 @@ class FcmService extends GetxService {
     await _localNotifications.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (response) {
-        final payload = response.payload;
-        if (payload == null || payload.isEmpty) {
-          _openNotificationsRoute();
-          return;
-        }
-
-        try {
-          final decoded = jsonDecode(payload);
-          if (decoded is Map<String, dynamic>) {
-            _handleDataNavigation(decoded);
-            return;
+        if (response.payload != null) {
+          try {
+            final data = jsonDecode(response.payload!);
+            _handleDataNavigation(data);
+          } catch (_) {
+            _openNotificationsRoute();
           }
-        } catch (_) {}
-
-        _openNotificationsRoute();
+        } else {
+          _openNotificationsRoute();
+        }
       },
     );
 
     await _localNotifications
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(_androidNotificationChannel);
   }
 
   Future<void> _requestPermissions() async {
-    final settings = await _messaging.requestPermission(
+    await _messaging.requestPermission(
       alert: true,
       badge: true,
       sound: true,
-      announcement: false,
-      carPlay: false,
-      criticalAlert: false,
-      provisional: false,
     );
-    debugPrint(
-      'FcmService._requestPermissions status: ${settings.authorizationStatus.name}',
-    );
-
+    
     await _localNotifications
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.requestNotificationsPermission();
-
-    await _localNotifications
-        .resolvePlatformSpecificImplementation<
-          IOSFlutterLocalNotificationsPlugin
-        >()
-        ?.requestPermissions(alert: true, badge: true, sound: true);
   }
 
   Future<void> _syncCurrentToken() async {
     try {
       final token = await _messaging.getToken();
-      if (token == null || token.isEmpty) {
-        return;
+      if (token != null) {
+        await _persistToken(token);
       }
-      await _persistToken(token);
-    } catch (error, stackTrace) {
-      debugPrint('FcmService._syncCurrentToken error: $error');
-      debugPrint('FcmService._syncCurrentToken stack: $stackTrace');
+    } catch (e) {
+      debugPrint('FcmService: Error getting token: $e');
     }
   }
 
+  /// Fix for token sync using Supabase Function (RPC)
   Future<void> _persistToken(String token) async {
     final userId = _authRepository.currentUserId;
-    if (userId == null || token.isEmpty) {
-      return;
-    }
+    if (userId == null || _authRepository.isAnonymous) return;
 
-    if (_lastSyncedUserId == userId && _lastSyncedToken == token) {
-      return;
-    }
+    if (_lastSyncedToken == token && _lastSyncedUserId == userId) return;
 
-    final now = DateTime.now().toIso8601String();
-    final platform = _platformName;
-
-    // First, deactivate all old tokens for this user on this platform
     try {
-      await _client
-          .from('user_push_tokens')
-          .update({'is_active': false, 'updated_at': now})
-          .eq('user_id', userId)
-          .eq('platform', platform)
-          .neq('token', token);
-    } catch (error) {
-      debugPrint(
-        'FcmService._persistToken deactivate old tokens error: $error',
-      );
-    }
+      // REQUIREMENT: Use RPC to bypass RLS issues for device tokens
+      await _client.rpc('upsert_push_token', params: {
+        'p_token': token,
+        'p_platform': _platformName,
+      });
 
-    final attempts = <Future<void> Function()>[
-      () => _client.rpc(
-        'upsert_push_token',
-        params: {'p_token': token, 'p_platform': platform},
-      ),
-      () async {
-        // Check if token already exists
-        final existing = await _client
-            .from('user_push_tokens')
-            .select('id')
-            .eq('user_id', userId)
-            .eq('token', token)
-            .maybeSingle();
-
-        if (existing != null) {
-          // Update existing token
-          await _client
-              .from('user_push_tokens')
-              .update({
-                'is_active': true,
-                'platform': platform,
-                'updated_at': now,
-              })
-              .eq('user_id', userId)
-              .eq('token', token);
-        } else {
-          // Insert new token
-          await _client.from('user_push_tokens').insert({
-            'user_id': userId,
-            'token': token,
-            'platform': platform,
-            'is_active': true,
-            'created_at': now,
-            'updated_at': now,
-          });
-        }
-      },
-      () => _client
-          .from('users')
-          .update({'fcm_token': token, 'updated_at': now})
-          .eq('id', userId),
-      () => _client
-          .from('users')
-          .update({'push_token': token, 'updated_at': now})
-          .eq('id', userId),
-    ];
-
-    Object? lastError;
-    StackTrace? lastStack;
-
-    for (final attempt in attempts) {
-      try {
-        await attempt();
-        _lastSyncedUserId = userId;
-        _lastSyncedToken = token;
-        _lastAuthUserId = userId;
-        return;
-      } catch (error, stackTrace) {
-        lastError = error;
-        lastStack = stackTrace;
-
-        if (_isSchemaMismatch(error)) {
-          continue;
-        }
-
-        debugPrint('FcmService._persistToken error: $error');
-        debugPrint('FcmService._persistToken stack: $stackTrace');
-        return;
-      }
-    }
-
-    if (lastError != null) {
-      debugPrint('FcmService._persistToken failed all strategies: $lastError');
-      if (lastStack != null) {
-        debugPrint('FcmService._persistToken failed stack: $lastStack');
-      }
+      _lastSyncedToken = token;
+      _lastSyncedUserId = userId;
+      debugPrint('FCM: Token synced for user $userId via Function');
+    } catch (e) {
+      debugPrint('FCM: Token sync failed: $e');
     }
   }
 
-  Future<void> _deactivateToken(String userId, String token) async {
-    final now = DateTime.now().toIso8601String();
-
-    final attempts = <Future<void> Function()>[
-      () => _client.rpc('deactivate_push_token', params: {'p_token': token}),
-      () => _client
-          .from('user_push_tokens')
-          .update({'is_active': false, 'updated_at': now})
-          .eq('user_id', userId)
-          .eq('token', token),
-    ];
-
-    for (final attempt in attempts) {
+  Future<void> _deactivateToken(String token) async {
+    try {
+      // Use RPC to deactivate to ensure consistent behavior
+      await _client.rpc('deactivate_push_token', params: {
+        'p_token': token,
+      });
+    } catch (e) {
+      // Fallback to direct update if RPC fails
       try {
-        await attempt();
-        return;
-      } catch (error) {
-        if (_isSchemaMismatch(error)) {
-          continue;
-        }
-        return;
-      }
+        await _client
+            .from('user_push_tokens')
+            .update({'is_active': false})
+            .eq('token', token);
+      } catch (_) {}
+    }
+  }
+
+  /// New Method to send notification via Supabase Function (RPC)
+  /// This method can be called from anywhere in the app to notify another user.
+  Future<void> sendNotification({
+    required String targetUserId,
+    required String title,
+    required String message,
+    String type = 'general',
+    Map<String, dynamic>? data,
+  }) async {
+    try {
+      await PushNotificationDispatcher.dispatch(
+        targetUserId: targetUserId,
+        title: title,
+        message: message,
+        type: type,
+        data: data,
+      );
+      debugPrint('FCM: Notification request sent to Firebase for user $targetUserId');
+    } catch (e) {
+      debugPrint('FCM: Failed to send notification via Function: $e');
     }
   }
 
   Future<void> _showForegroundNotification(RemoteMessage message) async {
     final title = _titleFromMessage(message);
     final body = _bodyFromMessage(message);
-    if (title == null && body == null) {
-      return;
-    }
-
-    final payload = message.data.isEmpty ? null : jsonEncode(message.data);
+    if (title == null && body == null) return;
 
     await _localNotifications.show(
-      message.messageId?.hashCode ?? DateTime.now().millisecondsSinceEpoch,
-      title ?? 'Snapstar',
-      body ?? '',
+      message.hashCode,
+      title,
+      body,
       NotificationDetails(
         android: AndroidNotificationDetails(
           _androidNotificationChannel.id,
           _androidNotificationChannel.name,
           channelDescription: _androidNotificationChannel.description,
-          importance: Importance.high,
+          importance: Importance.max,
           priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
         ),
         iOS: const DarwinNotificationDetails(
           presentAlert: true,
@@ -365,7 +311,7 @@ class FcmService extends GetxService {
           presentSound: true,
         ),
       ),
-      payload: payload,
+      payload: jsonEncode(message.data),
     );
   }
 
@@ -375,46 +321,20 @@ class FcmService extends GetxService {
   }
 
   void _handleDataNavigation(Map<String, dynamic> data) {
-    if (_authRepository.currentUserId == null) {
+    if (_authRepository.currentUserId == null) return;
+
+    final postId = data['post_id']?.toString();
+    if (_isUUID(postId)) {
+      _openPostFromNotification(postId!);
       return;
     }
 
-    final route = data['route']?.toString().trim();
-    if (route != null && route.isNotEmpty && route.startsWith('/')) {
-      Future<void>.microtask(() => Get.toNamed(route, arguments: data));
-      return;
-    }
-
-    final conversationId =
-        data['conversation_id']?.toString().trim() ??
-        data['chat_id']?.toString().trim();
-    if (conversationId != null && conversationId.isNotEmpty) {
-      Future<void>.microtask(
-        () => Get.toNamed(Routes.chatDetail, arguments: conversationId),
-      );
-      return;
-    }
-
-    final actorId = data['actor_id']?.toString().trim();
-    final type = data['type']?.toString().toLowerCase().trim();
-    const profileTypes = <String>{
-      'subscribe',
-      'unsubscribe',
-      'follow',
-      'follower',
-    };
-    if (actorId != null &&
-        actorId.isNotEmpty &&
-        profileTypes.contains(type)) {
-      Future<void>.microtask(
-        () => Get.toNamed(Routes.userProfile, arguments: actorId),
-      );
-      return;
-    }
-
-    final postId = data['post_id']?.toString().trim();
-    if (postId != null && postId.isNotEmpty) {
-      _openPostFromNotification(postId);
+    final conversationId = (data['conversation_id'] ?? data['chat_id'])?.toString();
+    if (_isUUID(conversationId)) {
+      Get.toNamed(Routes.chatDetail, arguments: {
+        'conversationId': conversationId,
+        'username': data['username'] ?? 'Chat',
+      });
       return;
     }
 
@@ -423,115 +343,38 @@ class FcmService extends GetxService {
 
   Future<void> _openPostFromNotification(String postId) async {
     try {
-      if (!Get.isRegistered<PostRepository>()) {
-        _openNotificationsRoute();
-        return;
+      if (Get.isRegistered<PostRepository>()) {
+        final post = await Get.find<PostRepository>().fetchPostById(postId);
+        if (post != null) {
+          Get.to(() => PostDetailScreen(post: post));
+          return;
+        }
       }
-      final post = await Get.find<PostRepository>().fetchPostById(postId);
-      if (post == null) {
-        _openNotificationsRoute();
-        return;
-      }
-      Future<void>.microtask(() => Get.to(() => PostDetailScreen(post: post)));
-    } catch (error, stackTrace) {
-      debugPrint('FcmService._openPostFromNotification error: $error');
-      debugPrint('FcmService._openPostFromNotification stack: $stackTrace');
-      _openNotificationsRoute();
-    }
+    } catch (_) {}
+    _openNotificationsRoute();
   }
 
   void _openNotificationsRoute() {
-    if (Get.currentRoute == Routes.notifications) {
-      return;
+    if (Get.currentRoute != Routes.notifications) {
+      Get.toNamed(Routes.notifications);
     }
-    Future<void>.microtask(() => Get.toNamed(Routes.notifications));
   }
 
   void _refreshNotificationBadge() {
-    if (!Get.isRegistered<NotificationBadgeController>()) {
-      return;
+    if (Get.isRegistered<NotificationBadgeController>()) {
+      Get.find<NotificationBadgeController>().refreshUnreadCount();
     }
-    Get.find<NotificationBadgeController>().refreshUnreadCount();
   }
 
   String? _titleFromMessage(RemoteMessage message) {
-    final notificationTitle = message.notification?.title?.trim();
-    if (notificationTitle != null && notificationTitle.isNotEmpty) {
-      return notificationTitle;
-    }
-
-    final dataTitle = message.data['title']?.toString().trim();
-    if (dataTitle != null && dataTitle.isNotEmpty) {
-      return dataTitle;
-    }
-
-    final dataType = message.data['type']?.toString().trim();
-    if (dataType != null && dataType.isNotEmpty) {
-      return dataType;
-    }
-
-    return null;
+    return message.notification?.title ?? message.data['title'];
   }
 
   String? _bodyFromMessage(RemoteMessage message) {
-    final notificationBody = message.notification?.body?.trim();
-    if (notificationBody != null && notificationBody.isNotEmpty) {
-      return notificationBody;
-    }
-
-    final dataMessage = message.data['message']?.toString().trim();
-    if (dataMessage != null && dataMessage.isNotEmpty) {
-      return dataMessage;
-    }
-
-    final dataBody = message.data['body']?.toString().trim();
-    if (dataBody != null && dataBody.isNotEmpty) {
-      return dataBody;
-    }
-
-    return null;
+    return message.notification?.body ?? message.data['body'] ?? message.data['message'];
   }
 
-  String get _platformName {
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-        return 'android';
-      case TargetPlatform.iOS:
-        return 'ios';
-      case TargetPlatform.macOS:
-        return 'macos';
-      case TargetPlatform.windows:
-        return 'windows';
-      case TargetPlatform.linux:
-        return 'linux';
-      case TargetPlatform.fuchsia:
-        return 'fuchsia';
-    }
-  }
-
-  bool _isSchemaMismatch(Object error) {
-    if (error is! PostgrestException) {
-      return false;
-    }
-
-    final code = error.code;
-    final message = error.message.toLowerCase();
-    final details = (error.details?.toString() ?? '').toLowerCase();
-
-    if (code == 'PGRST202' ||
-        code == 'PGRST204' ||
-        code == 'PGRST205' ||
-        code == '42P01' ||
-        code == '42703') {
-      return true;
-    }
-
-    return message.contains('schema cache') ||
-        message.contains('column') ||
-        message.contains('function') ||
-        message.contains('table') ||
-        details.contains('schema cache');
-  }
+  String get _platformName => defaultTargetPlatform.name.toLowerCase();
 
   @override
   void onClose() {

@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:video_compress/video_compress.dart';
 
+import '../../../core/utils/auth_helper.dart';
 import '../../../core/utils/helpers.dart';
 import '../../../data/controllers/upload_task_controller.dart';
 import '../../../modules/home_view/controllers/home_controller.dart';
@@ -107,6 +108,12 @@ class AddPostController extends GetxController {
   }
 
   Future<void> createPost() async {
+    if (!AuthHelper.checkAuthAndShowModal(
+      message: 'Login with Google to create a post',
+    )) {
+      return;
+    }
+
     if (selectedFiles.isEmpty) {
       AppHelpers.showSnackBar(
         title: 'Error',

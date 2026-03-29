@@ -22,6 +22,7 @@ class EditProfileController extends GetxController {
 
   final formKey = GlobalKey<FormState>();
 
+  late TextEditingController usernameCtrl;
   late TextEditingController nameCtrl;
   late TextEditingController bioCtrl;
   late TextEditingController phoneCtrl;
@@ -47,6 +48,7 @@ class EditProfileController extends GetxController {
     final profile = await _userRepo.fetchProfile(userId);
     userProfile.value = profile;
 
+    usernameCtrl = TextEditingController(text: profile?.username ?? '');
     nameCtrl = TextEditingController(text: profile?.name ?? '');
     bioCtrl = TextEditingController(text: profile?.bio ?? '');
     phoneCtrl = TextEditingController(text: profile?.phone ?? '');
@@ -82,6 +84,21 @@ class EditProfileController extends GetxController {
         throw Exception('User not authenticated');
       }
 
+      final normalizedUsername = usernameCtrl.text.trim().toLowerCase();
+      final currentUsername = userProfile.value?.username.trim().toLowerCase();
+
+      if (normalizedUsername != currentUsername) {
+        final isAvailable = await _userRepo.checkUsername(normalizedUsername);
+        if (!isAvailable) {
+          AppHelpers.showSnackBar(
+            title: 'Username unavailable',
+            message: 'Try a different username',
+            isError: true,
+          );
+          return;
+        }
+      }
+
       String? photoUrl = userProfile.value?.avatarUrl;
 
       if (selectedImage.value != null) {
@@ -93,6 +110,7 @@ class EditProfileController extends GetxController {
       }
 
       final updateData = {
+        'username': normalizedUsername,
         'name': nameCtrl.text.trim(),
         'bio': bioCtrl.text.trim(),
         'phone': phoneCtrl.text.trim(),
@@ -140,6 +158,7 @@ class EditProfileController extends GetxController {
 
   @override
   void onClose() {
+    usernameCtrl.dispose();
     nameCtrl.dispose();
     bioCtrl.dispose();
     phoneCtrl.dispose();

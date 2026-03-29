@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/models/post_model.dart';
+import '../../../../global_widgets/app_cached_image.dart';
 
 class PostGridItem extends StatelessWidget {
   final PostModel post;
@@ -15,11 +16,10 @@ class PostGridItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isVideo = post.mediaType == MediaType.video;
-
     final imageUrl = isVideo
         ? (post.thumbnailUrls.isNotEmpty
-        ? post.thumbnailUrls.first
-        : post.mediaUrls.first)
+              ? post.thumbnailUrls.first
+              : post.mediaUrls.first)
         : post.mediaUrls.first;
 
     return GestureDetector(
@@ -27,13 +27,10 @@ class PostGridItem extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          /// 📷 IMAGE / THUMBNAIL
-          Image.network(
-            imageUrl,
+          AppCachedImage(
+            imageUrl: imageUrl,
             fit: BoxFit.cover,
           ),
-
-          /// 🎬 VIDEO ICON (top right)
           if (isVideo)
             const Positioned(
               top: 6,

@@ -95,10 +95,10 @@ class StoryRepository {
     required String storyId,
     required String viewerId,
   }) async {
-    await _client.from('story_views').insert({
+    await _client.from('story_views').upsert({
       'story_id': storyId,
       'viewer_id': viewerId,
-    });
+    }, onConflict: 'story_id,viewer_id');
   }
 
   // ===============================

@@ -172,12 +172,14 @@ class PostService {
     int limit = 20,
     DateTime? cursorCreatedAt,
     String? cursorId,
+    double? cursorScore,
   }) async {
     try {
       return await _provider.fetchVideoPostsByCursor(
         limit: limit,
         cursorCreatedAt: cursorCreatedAt,
         cursorId: cursorId,
+        cursorScore: cursorScore,
       );
     } catch (error, stackTrace) {
       debugPrint('PostService.fetchVideoPostsByCursor error: $error');

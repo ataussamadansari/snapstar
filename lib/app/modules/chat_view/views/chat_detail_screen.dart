@@ -3,8 +3,12 @@ import 'package:get/get.dart';
 import 'package:snapstar_app/app/core/utils/helpers.dart';
 
 import '../../../core/utils/date_time_extension.dart';
+import '../../../core/utils/reels_navigation_helper.dart';
 import '../../../data/models/message_model.dart';
-import '../../main_view/controllers/main_controller.dart';
+import '../../../data/repositories/post_repository.dart';
+import '../../../global_widgets/app_cached_image.dart';
+import '../../../presentation/controllers/auth_controller.dart';
+import '../../post_view/views/post_detail_screen.dart';
 import '../controllers/chat_detail_controller.dart';
 import '../widgets/chat_detail_shimmer.dart';
 
@@ -129,6 +133,8 @@ class ChatDetailScreen extends GetView<ChatDetailController> {
   }
 
   Widget _buildMessageInput() {
+    final authController = Get.find<AuthController>();
+
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -144,40 +150,33 @@ class ChatDetailScreen extends GetView<ChatDetailController> {
       child: SafeArea(
         child: Row(
           children: [
-            // Obx(
-            //   () => controller.isLoadingMedia.value
-            //       ? const Padding(
-            //           padding: EdgeInsets.all(8),
-            //           child: SizedBox(
-            //             width: 24,
-            //             height: 24,
-            //             child: CircularProgressIndicator(strokeWidth: 2),
-            //           ),
-            //         )
-            //       : IconButton(
-            //           icon: const Icon(Icons.add_circle_outline),
-            //           onPressed: controller.showMediaOptions,
-            //         ),
-            // ),
             Expanded(
-              child: TextField(
-                controller: controller.messageController,
-                decoration: InputDecoration(
-                  hintText: 'Type a message...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide.none,
+              child: Obx(
+                () => TextField(
+                  controller: controller.messageController,
+                  readOnly: authController.isAnonymous.value,
+                  decoration: InputDecoration(
+                    hintText: authController.isAnonymous.value
+                        ? 'Login with Google to send messages'
+                        : 'Type a message...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: BorderSide.none,
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[100],
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                   ),
-                  filled: true,
-                  fillColor: Colors.grey[100],
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
+                  maxLines: null,
+                  textInputAction: TextInputAction.send,
+                  onTap: authController.isAnonymous.value
+                      ? controller.sendTextMessage
+                      : null,
+                  onSubmitted: (_) => controller.sendTextMessage(),
                 ),
-                maxLines: null,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => controller.sendTextMessage(),
               ),
             ),
             const SizedBox(width: 8),
@@ -350,17 +349,9 @@ class _MessageBubble extends StatelessWidget {
         if (message.mediaUrl != null)
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-              message.mediaUrl!,
+            child: AppCachedImage(
+              imageUrl: message.mediaUrl!,
               fit: BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
-                  height: 150,
-                  color: Colors.grey[200],
-                  child: const Center(child: CircularProgressIndicator()),
-                );
-              },
             ),
           ),
         if (message.messageText != null && message.messageText!.isNotEmpty) ...[
@@ -386,8 +377,8 @@ class _MessageBubble extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  message.thumbnailUrl ?? message.mediaUrl!,
+                child: AppCachedImage(
+                  imageUrl: message.thumbnailUrl ?? message.mediaUrl!,
                   height: 150,
                   width: double.infinity,
                   fit: BoxFit.cover,
@@ -421,6 +412,9 @@ class _MessageBubble extends StatelessWidget {
   }
 
   Widget _buildSharedPost() {
+    final previewUrl = message.sharedPostThumbnailUrl ?? message.sharedPostMediaUrl;
+    final isReel = message.messageType == MessageType.reel;
+
     return GestureDetector(
       onTap: () => _openSharedPost(),
       child: Container(
@@ -434,20 +428,32 @@ class _MessageBubble extends StatelessWidget {
           children: [
             Stack(
               children: [
-                if (message.sharedPostThumbnailUrl != null ||
-                    message.sharedPostMediaUrl != null)
+                if (previewUrl != null)
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      message.sharedPostThumbnailUrl ??
-                          message.sharedPostMediaUrl!,
+                    child: AppCachedImage(
+                      imageUrl: previewUrl,
                       height: 150,
                       width: double.infinity,
                       fit: BoxFit.cover,
                     ),
                   ),
-                // Show play icon for reels
-                if (message.messageType == MessageType.reel)
+                if (previewUrl == null)
+                  Container(
+                    height: 150,
+                    width: double.infinity,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: isMyMessage ? Colors.blue[600] : Colors.grey[300],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      isReel ? Icons.play_circle_outline : Icons.image_outlined,
+                      color: isMyMessage ? Colors.white70 : Colors.black54,
+                      size: 36,
+                    ),
+                  ),
+                if (isReel)
                   Positioned.fill(
                     child: Center(
                       child: Container(
@@ -496,29 +502,35 @@ class _MessageBubble extends StatelessWidget {
 
   void _openSharedPost() {
     if (message.sharedPostId == null) return;
+    final postRepo = Get.find<PostRepository>();
 
-    if (message.messageType == MessageType.reel) {
-      // For reels, navigate to main screen's reels tab
-      try {
-        final mainController = Get.find<MainController>();
-        Get.back(); // Close chat detail
-        Get.back(); // Close chat list
-        mainController.changeIndex(3); // Switch to reels tab (index 3)
-      } catch (e) {
+    postRepo.fetchPostById(message.sharedPostId!).then((post) {
+      if (post == null) {
         AppHelpers.showSnackBar(
-          title: 'Error',
-          message: 'Unable to open reel',
+          title: 'Unavailable',
+          message: 'This shared post is no longer available',
           isError: true,
         );
+        return;
       }
-    } else {
+
+      if (post.mediaType.name == 'video') {
+        ReelsNavigationHelper.openFromPost(
+          post,
+          scopedPosts: [post],
+          scopedUserId: post.userId,
+        );
+        return;
+      }
+
+      Get.to(() => PostDetailScreen(post: post));
+    }).catchError((_) {
       AppHelpers.showSnackBar(
-        title: 'Shared Post',
-        message: 'Post shared in chat',
-        isError: false,
-        duration: const Duration(seconds: 2),
+        title: 'Error',
+        message: 'Unable to open shared post',
+        isError: true,
       );
-    }
+    });
   }
 
   String _formatTime(DateTime dateTime) {

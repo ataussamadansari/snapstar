@@ -32,8 +32,6 @@ class LikeService {
           postId: postId,
           userId: userId,
         );
-
-        await _updateLikeCount(postId: postId, isLikeAction: false);
         return false;
       }
 
@@ -49,7 +47,6 @@ class LikeService {
         rethrow;
       }
 
-      await _updateLikeCount(postId: postId, isLikeAction: true);
       await _createLikeNotification(postId: postId, actorUserId: userId);
       return true;
     } catch (error, stackTrace) {
@@ -115,36 +112,6 @@ class LikeService {
 
       _disposeChannelIfIdle(postId);
     };
-  }
-
-  Future<void> _updateLikeCount({
-    required String postId,
-    required bool isLikeAction,
-  }) async {
-    try {
-      if (isLikeAction) {
-        await _provider.callIncrementLikeRpc(postId);
-      } else {
-        await _provider.callDecrementLikeRpc(postId);
-      }
-    } catch (error, stackTrace) {
-      debugPrint('LikeService._updateLikeCount rpc error: $error');
-      debugPrint('LikeService._updateLikeCount rpc stack: $stackTrace');
-      await _syncLikeCountFallback(postId);
-    }
-  }
-
-  Future<void> _syncLikeCountFallback(String postId) async {
-    try {
-      final latestLikeCount = await _provider.fetchLikeCount(postId);
-      await _provider.updatePostLikeCount(
-        postId: postId,
-        likeCount: latestLikeCount,
-      );
-    } catch (error, stackTrace) {
-      debugPrint('LikeService._syncLikeCountFallback error: $error');
-      debugPrint('LikeService._syncLikeCountFallback stack: $stackTrace');
-    }
   }
 
   bool _isUniqueViolation(PostgrestException error) {

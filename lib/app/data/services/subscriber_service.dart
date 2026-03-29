@@ -79,11 +79,7 @@ class SubscriberService {
           subscribedId: subscribedId,
         );
 
-        await _updateFollowCounts(
-          subscriberId: subscriberId,
-          subscribedId: subscribedId,
-          isSubscribeAction: false,
-        );
+        await _syncCountsFallback(subscriberId, subscribedId);
         await _createFollowNotification(
           actorUserId: subscriberId,
           receiverUserId: subscribedId,
@@ -98,11 +94,7 @@ class SubscriberService {
         'subscribed_id': subscribedId,
       });
 
-      await _updateFollowCounts(
-        subscriberId: subscriberId,
-        subscribedId: subscribedId,
-        isSubscribeAction: true,
-      );
+      await _syncCountsFallback(subscriberId, subscribedId);
       await _createFollowNotification(
         actorUserId: subscriberId,
         receiverUserId: subscribedId,
@@ -219,33 +211,6 @@ class SubscriberService {
 
       _disposeRealtimeIfIdle();
     };
-  }
-
-  Future<void> _updateFollowCounts({
-    required String subscriberId,
-    required String subscribedId,
-    required bool isSubscribeAction,
-  }) async {
-    try {
-      if (isSubscribeAction) {
-        await _provider.callIncrementSubscriberRpc(subscribedId);
-        await _provider.callIncrementSubscribingRpc(subscriberId);
-      } else {
-        await _provider.callDecrementSubscriberRpc(subscribedId);
-        await _provider.callDecrementSubscribingRpc(subscriberId);
-      }
-    } on PostgrestException catch (error, stackTrace) {
-      final isMissingRpc = error.code == 'PGRST202';
-      if (!isMissingRpc) {
-        debugPrint('SubscriberService._updateFollowCounts rpc error: $error');
-        debugPrint('SubscriberService._updateFollowCounts rpc stack: $stackTrace');
-      }
-      await _syncCountsFallback(subscriberId, subscribedId);
-    } catch (error, stackTrace) {
-      debugPrint('SubscriberService._updateFollowCounts rpc error: $error');
-      debugPrint('SubscriberService._updateFollowCounts rpc stack: $stackTrace');
-      await _syncCountsFallback(subscriberId, subscribedId);
-    }
   }
 
   Future<void> _syncCountsFallback(

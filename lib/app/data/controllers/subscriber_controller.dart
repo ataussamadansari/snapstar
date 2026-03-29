@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:snapstar_app/app/core/utils/auth_helper.dart';
 
 import '../../core/utils/subscribe_state.dart';
 import '../../modules/profile_view/controllers/profile_controller.dart';
@@ -45,6 +46,11 @@ class SubscriberController extends GetxController {
   }
 
   Future<void> toggle(String userId) async {
+    // Requirement 5: Action Guard
+    if (!AuthHelper.checkAuthAndShowModal(message: "Login with Google to follow your favorite creators!")) {
+      return;
+    }
+
     try {
       isLoading.value = true;
       await repo.toggleSubscribe(userId);

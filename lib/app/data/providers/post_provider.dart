@@ -90,15 +90,34 @@ class PostProvider {
     required int limit,
     required int offset,
   }) async {
-    final res = await _client
-        .from('posts')
-        .select('*, users(*)')
-        .eq('is_deleted', false)
-        .order('created_at', ascending: false)
-        .order('id', ascending: false)
-        .range(offset, offset + limit - 1);
+    try {
+      final myId = _client.auth.currentUser?.id;
+      final rpc = await _client.rpc(
+        'get_explore_feed',
+        params: {
+          'p_user_id': myId,
+          'p_limit': limit + offset,
+        },
+      );
 
-    return List<Map<String, dynamic>>.from(res);
+      final rows = List<Map<String, dynamic>>.from(rpc);
+      if (offset >= rows.length) {
+        return <Map<String, dynamic>>[];
+      }
+
+      return rows.skip(offset).take(limit).toList();
+    } catch (_) {
+      final res = await _client
+          .from('posts')
+          .select('*, users(*)')
+          .eq('is_deleted', false)
+          .order('engagement_score', ascending: false)
+          .order('created_at', ascending: false)
+          .order('id', ascending: false)
+          .range(offset, offset + limit - 1);
+
+      return List<Map<String, dynamic>>.from(res);
+    }
   }
 
   Future<List<Map<String, dynamic>>> fetchTrendingPosts({
@@ -109,6 +128,11 @@ class PostProvider {
         .from('posts')
         .select('*, users(*)')
         .eq('is_deleted', false)
+        .gte(
+          'created_at',
+          DateTime.now().subtract(const Duration(days: 14)).toIso8601String(),
+        )
+        .order('engagement_score', ascending: false)
         .order('share_count', ascending: false)
         .order('comment_count', ascending: false)
         .order('like_count', ascending: false)
@@ -235,27 +259,63 @@ class PostProvider {
     required int limit,
     DateTime? cursorCreatedAt,
     String? cursorId,
+    double? cursorScore,
   }) async {
-    var query = _client
-        .from('posts')
-        .select('*, users(*)')
-        .eq('media_type', MediaType.video.name)
-        .eq('is_deleted', false);
-
-    if (cursorCreatedAt != null && cursorId != null) {
-      final cursorIso = cursorCreatedAt.toUtc().toIso8601String();
-      query = query.or(
-        'created_at.lt.$cursorIso,and(created_at.eq.$cursorIso,id.lt.$cursorId)',
+    try {
+      final myId = _client.auth.currentUser?.id;
+      final rpc = await _client.rpc(
+        'get_ranked_reels',
+        params: {
+          'p_user_id': myId,
+          'p_limit': limit,
+          'p_cursor_score': cursorScore,
+          'p_cursor_created_at': cursorCreatedAt?.toUtc().toIso8601String(),
+          'p_cursor_id': cursorId,
+        },
       );
+
+      final rows = List<Map<String, dynamic>>.from(rpc);
+      DateTime? nextCreatedAt;
+      String? nextId;
+      double? nextScore;
+      if (rows.isNotEmpty) {
+        final last = rows.last;
+        nextCreatedAt = DateTime.tryParse(last['created_at']?.toString() ?? '');
+        nextId = last['id']?.toString();
+        nextScore = (last['rank_score'] as num?)?.toDouble();
+      }
+
+      return CursorPage<Map<String, dynamic>>(
+        items: rows,
+        nextCursorCreatedAt: nextCreatedAt?.toUtc(),
+        nextCursorId: nextId,
+        nextCursorScore: nextScore,
+        hasMore:
+            rows.length >= limit && nextCreatedAt != null && nextId != null,
+      );
+    } catch (_) {
+      var query = _client
+          .from('posts')
+          .select('*, users(*)')
+          .eq('media_type', MediaType.video.name)
+          .eq('is_deleted', false);
+
+      if (cursorCreatedAt != null && cursorId != null) {
+        final cursorIso = cursorCreatedAt.toUtc().toIso8601String();
+        query = query.or(
+          'created_at.lt.$cursorIso,and(created_at.eq.$cursorIso,id.lt.$cursorId)',
+        );
+      }
+
+      final res = await query
+          .order('engagement_score', ascending: false)
+          .order('created_at', ascending: false)
+          .order('id', ascending: false)
+          .limit(limit);
+
+      final rows = List<Map<String, dynamic>>.from(res);
+      return _toCursorPage(rows, limit);
     }
-
-    final res = await query
-        .order('created_at', ascending: false)
-        .order('id', ascending: false)
-        .limit(limit);
-
-    final rows = List<Map<String, dynamic>>.from(res);
-    return _toCursorPage(rows, limit);
   }
 
   Future<List<Map<String, dynamic>>> searchPosts({
@@ -270,7 +330,7 @@ class PostProvider {
 
     try {
       final rpc = await _client.rpc(
-        'search_posts_with_hashtags',
+        'search_posts_fts',
         params: {
           'p_query': normalizedQuery,
           'p_limit': limit,
@@ -279,17 +339,29 @@ class PostProvider {
       );
       return List<Map<String, dynamic>>.from(rpc);
     } catch (_) {
-      final res = await _client
-          .from('posts')
-          .select('*, users(*)')
-          .eq('is_deleted', false)
-          .or(
-            'caption.ilike.%$normalizedQuery%,location.ilike.%$normalizedQuery%',
-          )
-          .order('created_at', ascending: false)
-          .range(offset, offset + limit - 1);
+      try {
+        final rpc = await _client.rpc(
+          'search_posts_with_hashtags',
+          params: {
+            'p_query': normalizedQuery,
+            'p_limit': limit,
+            'p_offset': offset,
+          },
+        );
+        return List<Map<String, dynamic>>.from(rpc);
+      } catch (_) {
+        final res = await _client
+            .from('posts')
+            .select('*, users(*)')
+            .eq('is_deleted', false)
+            .or(
+              'caption.ilike.%$normalizedQuery%,location.ilike.%$normalizedQuery%',
+            )
+            .order('created_at', ascending: false)
+            .range(offset, offset + limit - 1);
 
-      return List<Map<String, dynamic>>.from(res);
+        return List<Map<String, dynamic>>.from(res);
+      }
     }
   }
 

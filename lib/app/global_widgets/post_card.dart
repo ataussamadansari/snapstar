@@ -17,6 +17,7 @@ import '../data/repositories/auth_repository.dart';
 import '../data/repositories/post_repository.dart';
 import '../modules/post_view/views/post_detail_screen.dart';
 import '../routes/app_routes.dart';
+import 'app_avatar.dart';
 import 'auto_play_video.dart';
 import 'comment_bottom_sheet.dart';
 import 'share_post_bottom_sheet.dart';
@@ -147,15 +148,10 @@ class _PostCardState extends State<PostCard> {
             onTap: userId == null
                 ? null
                 : () => Get.toNamed(Routes.userProfile, arguments: userId),
-            child: CircleAvatar(
+            child: AppAvatar(
               radius: 18,
-              backgroundImage:
-                  (user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty)
-                  ? NetworkImage(user.avatarUrl!)
-                  : null,
-              child: (user?.avatarUrl == null || user!.avatarUrl!.isEmpty)
-                  ? const Icon(Icons.person, size: 20)
-                  : null,
+              avatarUrl: user?.avatarUrl,
+              iconSize: 20,
             ),
           ),
           const SizedBox(width: 10),
@@ -296,7 +292,27 @@ class _PostCardState extends State<PostCard> {
             aspectRatio: aspectRatio,
             child: GestureDetector(
               onDoubleTap: _handleLike,
-              child: CachedNetworkImage(imageUrl: imageUrl, fit: BoxFit.cover),
+              child: CachedNetworkImage(
+                imageUrl: imageUrl,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  color: Colors.grey.shade200,
+                  alignment: Alignment.center,
+                  child: const SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(strokeWidth: 2.4),
+                  ),
+                ),
+                errorWidget: (context, url, error) => Container(
+                  color: Colors.grey.shade200,
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.broken_image_outlined,
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
             ),
           ),
           Positioned(
@@ -328,6 +344,23 @@ class _PostCardState extends State<PostCard> {
                 return CachedNetworkImage(
                   imageUrl: _post.mediaUrls[index],
                   fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(
+                    color: Colors.grey.shade200,
+                    alignment: Alignment.center,
+                    child: const SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(strokeWidth: 2.4),
+                    ),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    color: Colors.grey.shade200,
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.broken_image_outlined,
+                      color: Colors.grey,
+                    ),
+                  ),
                 );
               },
             ),
@@ -600,6 +633,20 @@ class _PostCardState extends State<PostCard> {
                     child: CachedNetworkImage(
                       imageUrl: imageUrl,
                       fit: BoxFit.contain,
+                      placeholder: (context, url) => const Center(
+                        child: SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: CircularProgressIndicator(strokeWidth: 2.4),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => const Center(
+                        child: Icon(
+                          Icons.broken_image_outlined,
+                          color: Colors.white70,
+                          size: 32,
+                        ),
+                      ),
                     ),
                   ),
                 ),

@@ -11,7 +11,9 @@ import '../../../data/controllers/like_controller.dart';
 import '../../../data/controllers/share_controller.dart';
 import '../../../data/models/post_model.dart';
 import '../../../data/repositories/auth_repository.dart';
+import '../../../global_widgets/app_avatar.dart';
 import '../../../global_widgets/auto_play_video.dart';
+import '../../../global_widgets/app_cached_image.dart';
 import '../../../global_widgets/comment_bottom_sheet.dart';
 import '../../../global_widgets/loading_skeleton.dart';
 import '../../../global_widgets/share_post_bottom_sheet.dart';
@@ -188,7 +190,6 @@ class _ReelViewState extends State<_ReelView>
     final caption = _post.caption.trim();
     final hasCaption = caption.isNotEmpty;
     final avatarUrl = user?.avatarUrl;
-    final hasAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
     final myId = _authRepo.currentUserId;
     final userId = user?.id;
 
@@ -245,19 +246,12 @@ class _ReelViewState extends State<_ReelView>
                                         ),
                                   child: Row(
                                     children: [
-                                      CircleAvatar(
+                                      AppAvatar(
                                         radius: 16,
+                                        avatarUrl: avatarUrl,
                                         backgroundColor: Colors.grey.shade800,
-                                        backgroundImage: hasAvatar
-                                            ? NetworkImage(avatarUrl)
-                                            : null,
-                                        child: hasAvatar
-                                            ? null
-                                            : const Icon(
-                                                Icons.person,
-                                                color: Colors.white,
-                                                size: 18,
-                                              ),
+                                        iconColor: Colors.white,
+                                        iconSize: 18,
                                       ),
                                       const SizedBox(width: 10),
                                       Expanded(
@@ -368,7 +362,7 @@ class _ReelViewState extends State<_ReelView>
           : null;
 
       if (thumbnailUrl != null && thumbnailUrl.isNotEmpty) {
-        return CachedNetworkImage(imageUrl: thumbnailUrl, fit: BoxFit.cover);
+        return AppCachedImage(imageUrl: thumbnailUrl, fit: BoxFit.cover);
       }
 
       return const ColoredBox(color: Colors.black);

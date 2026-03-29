@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'package:get/get.dart';
 import 'package:flutter/foundation.dart';
+import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../providers/auth_provider.dart';
@@ -28,35 +28,35 @@ class AuthService extends GetxService {
   User? get currentUser => _provider.currentUser;
   Session? get currentSession => _provider.currentSession;
   Stream<User?> get currentUserStream => _currentUserController.stream;
+  Stream<AuthState> get authStateChanges => _provider.authStateChanges;
+  bool get isAnonymous => _provider.isAnonymous;
 
-  Future<AuthResponse> signUp({
-    required String email,
-    required String password,
-  }) async {
+  Future<AuthResponse> signInWithGoogle() async {
     try {
-      return await _provider.signUp(
-        email: email,
-        password: password,
-      );
+      return await _provider.signInWithGoogle();
     } catch (error, stackTrace) {
-      debugPrint('AuthService.signUp error: $error');
-      debugPrint('AuthService.signUp stack: $stackTrace');
+      debugPrint('AuthService.signInWithGoogle error: $error');
+      debugPrint('AuthService.signInWithGoogle stack: $stackTrace');
       rethrow;
     }
   }
 
-  Future<AuthResponse> signIn({
-    required String email,
-    required String password,
-  }) async {
+  Future<AuthResponse> signInAnonymously() async {
     try {
-      return await _provider.signIn(
-        email: email,
-        password: password,
-      );
+      return await _provider.signInAnonymously();
     } catch (error, stackTrace) {
-      debugPrint('AuthService.signIn error: $error');
-      debugPrint('AuthService.signIn stack: $stackTrace');
+      debugPrint('AuthService.signInAnonymously error: $error');
+      debugPrint('AuthService.signInAnonymously stack: $stackTrace');
+      rethrow;
+    }
+  }
+
+  Future<bool> linkWithGoogle() async {
+    try {
+      return await _provider.linkWithGoogle();
+    } catch (error, stackTrace) {
+      debugPrint('AuthService.linkWithGoogle error: $error');
+      debugPrint('AuthService.linkWithGoogle stack: $stackTrace');
       rethrow;
     }
   }
@@ -71,8 +71,10 @@ class AuthService extends GetxService {
     }
   }
 
-  Future<void> dispose() async {
-    await _authStateSubscription?.cancel();
-    await _currentUserController.close();
+  @override
+  void onClose() {
+    _authStateSubscription?.cancel();
+    _currentUserController.close();
+    super.onClose();
   }
 }

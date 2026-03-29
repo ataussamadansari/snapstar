@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Numbers only restriction ke liye zaruri hai
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:snapstar_app/app/global_widgets/app_avatar.dart';
 import 'package:snapstar_app/app/global_widgets/loading_skeleton.dart';
+
 import '../controllers/edit_profile_controller.dart';
 
 class EditProfileScreen extends GetView<EditProfileController> {
@@ -18,7 +20,7 @@ class EditProfileScreen extends GetView<EditProfileController> {
           onPressed: () => Get.back(),
         ),
         title: const Text(
-          "Edit Profile",
+          'Edit Profile',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
@@ -33,7 +35,7 @@ class EditProfileScreen extends GetView<EditProfileController> {
                 : TextButton(
                     onPressed: controller.updateProfile,
                     child: const Text(
-                      "Done",
+                      'Done',
                       style: TextStyle(
                         color: Colors.blue,
                         fontWeight: FontWeight.bold,
@@ -46,9 +48,7 @@ class EditProfileScreen extends GetView<EditProfileController> {
       ),
       body: Obx(() {
         if (controller.userProfile.value == null) {
-          return const AppShimmer(
-            child: ProfileHeaderSkeleton(),
-          );
+          return const AppShimmer(child: ProfileHeaderSkeleton());
         }
 
         return SingleChildScrollView(
@@ -59,35 +59,35 @@ class EditProfileScreen extends GetView<EditProfileController> {
               children: [
                 _buildImagePicker(),
                 const SizedBox(height: 10),
-
-                _buildSectionHeader("Public Information"),
+                _buildSectionHeader('Public Information'),
                 _buildInputField(
-                  "Name",
+                  'Username',
+                  controller.usernameCtrl,
+                  Icons.alternate_email,
+                  isUsername: true,
+                ),
+                _buildInputField(
+                  'Name',
                   controller.nameCtrl,
                   Icons.person_outline,
                 ),
                 _buildBioField(),
-
                 const SizedBox(height: 10),
-                _buildSectionHeader("Private Information"),
-
-                // 📱 Phone Field with 10 digit & number only restriction
+                _buildSectionHeader('Private Information'),
                 _buildInputField(
-                  "Phone",
+                  'Phone',
                   controller.phoneCtrl,
                   Icons.phone_android_outlined,
                   isPhoneNumber: true,
                 ),
-
                 _buildInputField(
-                  "Email",
+                  'Email',
                   TextEditingController(
                     text: controller.userProfile.value!.email,
                   ),
                   Icons.email_outlined,
                   enabled: false,
                 ),
-
                 const SizedBox(height: 40),
               ],
             ),
@@ -102,25 +102,23 @@ class EditProfileScreen extends GetView<EditProfileController> {
       children: [
         Stack(
           children: [
-            Obx(
-              () => CircleAvatar(
+            Obx(() {
+              if (controller.selectedImage.value != null) {
+                return CircleAvatar(
+                  radius: 50,
+                  backgroundColor: Colors.grey[200],
+                  backgroundImage: FileImage(controller.selectedImage.value!),
+                );
+              }
+
+              return AppAvatar(
                 radius: 50,
+                avatarUrl: controller.userProfile.value?.avatarUrl,
                 backgroundColor: Colors.grey[200],
-                backgroundImage: controller.selectedImage.value != null
-                    ? FileImage(controller.selectedImage.value!)
-                    : (controller.userProfile.value?.avatarUrl != null
-                              ? NetworkImage(
-                                  controller.userProfile.value!.avatarUrl!,
-                                )
-                              : null)
-                          as ImageProvider?,
-                child:
-                    (controller.selectedImage.value == null &&
-                        controller.userProfile.value?.avatarUrl == null)
-                    ? const Icon(Icons.person, size: 50, color: Colors.grey)
-                    : null,
-              ),
-            ),
+                iconColor: Colors.grey,
+                iconSize: 50,
+              );
+            }),
             Positioned(
               bottom: 0,
               right: 0,
@@ -139,7 +137,7 @@ class EditProfileScreen extends GetView<EditProfileController> {
         GestureDetector(
           onTap: controller.pickImage,
           child: const Text(
-            "Edit and adjust profile picture",
+            'Edit and adjust profile picture',
             style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
           ),
         ),
@@ -170,40 +168,56 @@ class EditProfileScreen extends GetView<EditProfileController> {
     IconData icon, {
     bool enabled = true,
     bool isPhoneNumber = false,
+    bool isUsername = false,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: TextFormField(
         controller: ctrl,
         enabled: enabled,
-        // 🔢 Phone number ke liye numeric keyboard
         keyboardType: isPhoneNumber ? TextInputType.number : TextInputType.text,
         inputFormatters: isPhoneNumber
             ? [
-                FilteringTextInputFormatter
-                    .digitsOnly, // Sirf digits allow karega
-                LengthLimitingTextInputFormatter(
-                  10,
-                ), // 10 characters se zyada nahi
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(10),
               ]
-            : null,
+            : isUsername
+                ? [
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'[a-zA-Z0-9_.]'),
+                    ),
+                    LengthLimitingTextInputFormatter(30),
+                  ]
+                : null,
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(icon, size: 20),
           filled: !enabled,
-          // fillColor: enabled ? Colors.transparent : Colors.grey[100],
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         ),
-        // ⚠️ Validation logic
         validator: (value) {
-          if (isPhoneNumber && value != null && value.isNotEmpty) {
-            if (value.length != 10) {
-              return "Enter a valid 10-digit phone number";
+          final text = (value ?? '').trim();
+
+          if (isUsername) {
+            if (text.isEmpty) {
+              return 'Username cannot be empty';
+            }
+            if (text.length < 3) {
+              return 'Username must be at least 3 characters';
+            }
+            if (!RegExp(r'^[a-zA-Z0-9_.]+$').hasMatch(text)) {
+              return 'Use only letters, numbers, _ and .';
             }
           }
-          if (label == "Name" && (value == null || value.isEmpty)) {
-            return "Name cannot be empty";
+
+          if (isPhoneNumber && text.isNotEmpty && text.length != 10) {
+            return 'Enter a valid 10-digit phone number';
           }
+
+          if (label == 'Name' && text.isEmpty) {
+            return 'Name cannot be empty';
+          }
+
           return null;
         },
       ),
@@ -221,10 +235,10 @@ class EditProfileScreen extends GetView<EditProfileController> {
             maxLines: 3,
             maxLength: 150,
             decoration: InputDecoration(
-              labelText: "Bio",
+              labelText: 'Bio',
               alignLabelWithHint: true,
               prefixIcon: const Icon(Icons.info_outline),
-              counterText: "",
+              counterText: '',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -233,7 +247,7 @@ class EditProfileScreen extends GetView<EditProfileController> {
           const SizedBox(height: 4),
           Obx(
             () => Text(
-              "${controller.bioLength.value} / 150",
+              '${controller.bioLength.value} / 150',
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ),

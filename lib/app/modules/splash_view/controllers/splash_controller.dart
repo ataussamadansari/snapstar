@@ -1,8 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 
-import '../../../data/repositories/auth_repository.dart';
+import '../../../data/auth_repository.dart';
 import '../../../data/repositories/user_repository.dart';
+import '../../../presentation/controllers/auth_controller.dart';
 import '../../../routes/app_routes.dart';
 
 class SplashController extends GetxController {
@@ -19,30 +20,28 @@ class SplashController extends GetxController {
 
   Future<void> _checkAuth() async {
     try {
-      await Future.delayed(const Duration(seconds: 1));
+      await Future.delayed(const Duration(seconds: 2));
+
+      final authController = Get.find<AuthController>();
+      await authController.ensureSession();
 
       final userId = _authRepo.currentUserId;
-
       if (userId == null) {
         Get.offAllNamed(Routes.login);
         return;
       }
 
-      final profile = await _userRepo.fetchProfile(userId);
-
-      if (profile == null) {
-        Get.offAllNamed(Routes.profileSetup);
-        return;
-      }
-
-      if (profile.username.trim().isEmpty) {
-        Get.offAllNamed(Routes.profileSetup);
-        return;
+      if (!_authRepo.isAnonymous) {
+        final profile = await _userRepo.fetchProfile(userId);
+        if (profile == null || profile.username.isEmpty) {
+          Get.offAllNamed(Routes.profileSetup);
+          return;
+        }
       }
 
       Get.offAllNamed(Routes.main);
-    } catch (e) {
-      debugPrint('Splash error: $e');
+    } catch (error) {
+      debugPrint('Splash error: $error');
       Get.offAllNamed(Routes.login);
     }
   }

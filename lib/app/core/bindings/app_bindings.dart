@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:snapstar_app/app/data/auth_repository.dart';
 import 'package:snapstar_app/app/data/controllers/comment_controller.dart';
 import 'package:snapstar_app/app/data/controllers/global_media_controller.dart';
 import 'package:snapstar_app/app/data/controllers/notification_badge_controller.dart';
@@ -15,7 +16,6 @@ import 'package:snapstar_app/app/data/providers/notification_provider.dart';
 import 'package:snapstar_app/app/data/providers/post_provider.dart';
 import 'package:snapstar_app/app/data/providers/subscriber_provider.dart';
 import 'package:snapstar_app/app/data/providers/user_provider.dart';
-import 'package:snapstar_app/app/data/repositories/auth_repository.dart';
 import 'package:snapstar_app/app/data/repositories/chat_repository.dart';
 import 'package:snapstar_app/app/data/repositories/comment_repository.dart';
 import 'package:snapstar_app/app/data/repositories/like_repository.dart';
@@ -27,6 +27,7 @@ import 'package:snapstar_app/app/data/repositories/user_repository.dart';
 import 'package:snapstar_app/app/data/services/auth_service.dart';
 import 'package:snapstar_app/app/data/services/comment_service.dart';
 import 'package:snapstar_app/app/data/services/fcm_service.dart';
+import 'package:snapstar_app/app/data/services/shorebird_service.dart';
 import 'package:snapstar_app/app/data/services/like_service.dart';
 import 'package:snapstar_app/app/data/services/local_cache_service.dart';
 import 'package:snapstar_app/app/data/services/notification_service.dart';
@@ -35,8 +36,13 @@ import 'package:snapstar_app/app/data/services/storage_service.dart';
 import 'package:snapstar_app/app/data/services/story_service.dart';
 import 'package:snapstar_app/app/data/services/subscriber_service.dart';
 import 'package:snapstar_app/app/data/services/user_service.dart';
+import 'package:snapstar_app/app/domain/usecases/login_anonymously_usecase.dart';
+import 'package:snapstar_app/app/domain/usecases/login_with_google_usecase.dart';
+import 'package:snapstar_app/app/domain/usecases/logout_usecase.dart';
+import 'package:snapstar_app/app/domain/usecases/observe_auth_state_usecase.dart';
+import 'package:snapstar_app/app/domain/usecases/upgrade_anonymous_to_google_usecase.dart';
+import 'package:snapstar_app/app/presentation/controllers/auth_controller.dart';
 
-import '../../data/controllers/auth_controller.dart';
 import '../../data/controllers/like_controller.dart';
 
 class AppBindings extends Bindings {
@@ -88,6 +94,26 @@ class AppBindings extends Bindings {
       AuthRepository(Get.find<AuthService>()),
       permanent: true,
     );
+    Get.put<LoginWithGoogleUseCase>(
+      LoginWithGoogleUseCase(Get.find<AuthRepository>()),
+      permanent: true,
+    );
+    Get.put<LoginAnonymouslyUseCase>(
+      LoginAnonymouslyUseCase(Get.find<AuthRepository>()),
+      permanent: true,
+    );
+    Get.put<LogoutUseCase>(
+      LogoutUseCase(Get.find<AuthRepository>()),
+      permanent: true,
+    );
+    Get.put<UpgradeAnonymousToGoogleUseCase>(
+      UpgradeAnonymousToGoogleUseCase(Get.find<AuthRepository>()),
+      permanent: true,
+    );
+    Get.put<ObserveAuthStateUseCase>(
+      ObserveAuthStateUseCase(Get.find<AuthRepository>()),
+      permanent: true,
+    );
     Get.put<UserRepository>(
       UserRepository(Get.find<UserService>()),
       permanent: true,
@@ -129,7 +155,16 @@ class AppBindings extends Bindings {
     Get.put<LocalCacheService>(LocalCacheService(), permanent: true);
 
     Get.put<AuthController>(
-      AuthController(Get.find<AuthRepository>()),
+      AuthController(
+        authRepository: Get.find<AuthRepository>(),
+        userRepository: Get.find<UserRepository>(),
+        loginWithGoogleUseCase: Get.find<LoginWithGoogleUseCase>(),
+        loginAnonymouslyUseCase: Get.find<LoginAnonymouslyUseCase>(),
+        logoutUseCase: Get.find<LogoutUseCase>(),
+        upgradeAnonymousToGoogleUseCase:
+            Get.find<UpgradeAnonymousToGoogleUseCase>(),
+        observeAuthStateUseCase: Get.find<ObserveAuthStateUseCase>(),
+      ),
       permanent: true,
     );
     Get.put<LikeController>(
@@ -169,5 +204,6 @@ class AppBindings extends Bindings {
       FcmService(client, Get.find<AuthRepository>()),
       permanent: true,
     );
+    Get.put<ShorebirdService>(ShorebirdService(), permanent: true);
   }
 }

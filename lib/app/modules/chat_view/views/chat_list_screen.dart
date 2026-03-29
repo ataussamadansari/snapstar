@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../../core/utils/date_time_extension.dart';
 import '../../../data/models/conversation_model.dart';
+import '../../../global_widgets/app_avatar.dart';
 import '../controllers/chat_list_controller.dart';
 import '../widgets/chat_list_shimmer.dart';
 
@@ -156,15 +157,11 @@ class _ConversationTile extends StatelessWidget {
       onLongPress: onLongPress,
       leading: Stack(
         children: [
-          CircleAvatar(
+          AppAvatar(
             radius: 28,
+            avatarUrl: otherUser?.avatarUrl,
             backgroundColor: Colors.grey[200],
-            backgroundImage: otherUser?.avatarUrl != null
-                ? NetworkImage(otherUser!.avatarUrl!)
-                : null,
-            child: otherUser?.avatarUrl == null
-                ? Icon(Icons.person, color: Colors.grey[600])
-                : null,
+            iconColor: Colors.grey[600],
           ),
           if (hasUnread)
             Positioned(

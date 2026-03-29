@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class UserProvider {
@@ -17,6 +18,7 @@ class UserProvider {
         .from('users')
         .select('id, username, name, avatar_url')
         .neq('id', myId)
+        .eq('is_anonymous', false)
         .range(offset, offset + limit - 1);
 
     return List<Map<String, dynamic>>.from(res);
@@ -36,6 +38,7 @@ class UserProvider {
     var request = _client
         .from('users')
         .select()
+        .eq('is_anonymous', false)
         .or('username.ilike.%$normalizedQuery%,name.ilike.%$normalizedQuery%');
 
     if (excludeUserId != null && excludeUserId.isNotEmpty) {
@@ -52,7 +55,42 @@ class UserProvider {
 
   /// CREATE USER PROFILE
   Future<void> createUser(Map<String, dynamic> data) async {
-    await _client.from('users').insert(data);
+    try {
+      await _client.from('users').upsert(data, onConflict: 'id');
+    } on PostgrestException catch (error, stackTrace) {
+      final normalizedEmail = data['email']?.toString().trim();
+      final isEmailConflict =
+          error.code == '23505' &&
+          error.message.contains('users_email_key') &&
+          normalizedEmail != null &&
+          normalizedEmail.isNotEmpty;
+
+      if (!isEmailConflict) {
+        rethrow;
+      }
+
+      debugPrint('UserProvider.createUser email conflict fallback: $error');
+      debugPrint('UserProvider.createUser email conflict stack: $stackTrace');
+
+      final existing = await _client
+          .from('users')
+          .select('id')
+          .eq('email', normalizedEmail)
+          .maybeSingle();
+
+      if (existing == null) {
+        rethrow;
+      }
+
+      final updatePayload = Map<String, dynamic>.from(data)
+        ..remove('id')
+        ..remove('created_at');
+
+      await _client
+          .from('users')
+          .update(updatePayload)
+          .eq('email', normalizedEmail);
+    }
   }
 
   /// GET USER PROFILE

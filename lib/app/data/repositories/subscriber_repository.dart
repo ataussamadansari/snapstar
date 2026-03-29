@@ -106,6 +106,7 @@ class SubscriberRepository {
     return raw
         .map(_extractJoinedUser)
         .whereType<Map<String, dynamic>>()
+        .where((user) => user['is_anonymous'] != true)
         .map(UserModel.fromJson)
         .toList();
   }
@@ -116,6 +117,7 @@ class SubscriberRepository {
     return raw
         .map(_extractJoinedUser)
         .whereType<Map<String, dynamic>>()
+        .where((user) => user['is_anonymous'] != true)
         .map(UserModel.fromJson)
         .toList();
   }

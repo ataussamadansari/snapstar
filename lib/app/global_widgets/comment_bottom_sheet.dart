@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:snapstar_app/app/core/utils/time_ago.dart';
 import 'package:snapstar_app/app/data/controllers/comment_controller.dart';
-import 'package:snapstar_app/app/data/services/auth_service.dart';
+import 'package:snapstar_app/app/global_widgets/app_avatar.dart';
 import 'package:snapstar_app/app/global_widgets/loading_skeleton.dart';
+import 'package:snapstar_app/app/presentation/controllers/auth_controller.dart';
 
 class CommentBottomSheet extends StatefulWidget {
   final String postId;
@@ -129,14 +130,11 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           /// Avatar
-          CircleAvatar(
+          AppAvatar(
             radius: isReply ? 14 : 18,
-            backgroundImage: comment.user?.avatarUrl != null
-                ? NetworkImage(comment.user!.avatarUrl!)
-                : null,
-            child: comment.user?.avatarUrl == null
-                ? Icon(Icons.person, size: isReply ? 14 : 18)
-                : null,
+            avatarUrl: comment.user?.avatarUrl,
+            backgroundColor: Colors.grey.shade200,
+            iconSize: isReply ? 14 : 18,
           ),
 
           const SizedBox(width: 10),
@@ -204,7 +202,7 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
           ),
 
           /// 3 DOT MENU - Only show if current user is comment owner
-          if (Get.find<AuthService>().currentUser?.id == comment.userId)
+          if (Get.find<AuthController>().currentUserId == comment.userId)
             PopupMenuButton<String>(
               iconSize: 18,
               onSelected: (value) async {
@@ -248,30 +246,46 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
       child: Row(
         children: [
           Expanded(
-            child: TextField(
-              controller: _textController,
-              decoration: InputDecoration(
-                hintText: editingCommentId != null
-                    ? "Edit comment..."
-                    : replyParentId != null
-                    ? "Reply..."
-                    : "Add a comment...",
-                filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 15,
-                  vertical: 10,
+            child: Obx(() {
+              final isAnonymous = Get.find<AuthController>().isAnonymous.value;
+              return TextField(
+                controller: _textController,
+                readOnly: isAnonymous,
+                decoration: InputDecoration(
+                  hintText: isAnonymous
+                      ? "Login with Google to comment..."
+                      : editingCommentId != null
+                      ? "Edit comment..."
+                      : replyParentId != null
+                      ? "Reply..."
+                      : "Add a comment...",
+                  filled: true,
+                  fillColor: theme.colorScheme.surfaceContainerHighest,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 15,
+                    vertical: 10,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(25),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(25),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
+              );
+            }),
           ),
           const SizedBox(width: 8),
           IconButton(
             onPressed: () async {
+              final isAnonymous = Get.find<AuthController>().isAnonymous.value;
+              if (isAnonymous) {
+                await controller.addComment(
+                  postId: widget.postId,
+                  text: '',
+                  parentId: replyParentId,
+                );
+                return;
+              }
+
               final text = _textController.text.trim();
               if (text.isEmpty) return;
 

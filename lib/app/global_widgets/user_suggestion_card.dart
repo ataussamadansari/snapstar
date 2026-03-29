@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data/models/user_model.dart';
 
+import 'app_avatar.dart';
 import 'subscribe_button.dart';
 
 class UserSuggestionCard extends StatelessWidget {
@@ -40,21 +41,14 @@ class UserSuggestionCard extends StatelessWidget {
           /// PROFILE IMAGE
           GestureDetector(
             onTap: onProfileTap,
-            child: CircleAvatar(
+            child: AppAvatar(
               radius: 35,
+              avatarUrl: user.avatarUrl,
               backgroundColor: isDarkMode
                   ? Colors.grey[800]
                   : Colors.grey.shade300,
-              backgroundImage:
-              user.avatarUrl != null
-                  ? NetworkImage(
-                  user.avatarUrl!)
-                  : null,
-              child: user.avatarUrl == null
-                  ? const Icon(Icons.person,
-                  color: Colors.white,
-                  size: 30)
-                  : null,
+              iconColor: Colors.white,
+              iconSize: 30,
             ),
           ),
           const SizedBox(height: 10),

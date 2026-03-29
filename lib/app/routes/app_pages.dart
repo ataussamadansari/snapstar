@@ -6,7 +6,6 @@ import 'package:snapstar_app/app/modules/chat_view/views/chat_detail_screen.dart
 import 'package:snapstar_app/app/modules/chat_view/views/chat_list_screen.dart';
 import 'package:snapstar_app/app/modules/edit_profile_view/bindings/edit_profile_binding.dart';
 import 'package:snapstar_app/app/modules/edit_profile_view/views/edit_profile_screen.dart';
-import 'package:snapstar_app/app/modules/login_view/bindings/login_binding.dart';
 import 'package:snapstar_app/app/modules/login_view/views/login_screen.dart';
 import 'package:snapstar_app/app/modules/main_view/bindings/main_binding.dart';
 import 'package:snapstar_app/app/modules/main_view/views/main_screen.dart';
@@ -16,8 +15,6 @@ import 'package:snapstar_app/app/modules/profile_view/bindings/user_profile_bind
 import 'package:snapstar_app/app/modules/profile_view/views/user_profile_screen.dart';
 import 'package:snapstar_app/app/modules/setup_profile_view/bindings/setup_profile_binding.dart';
 import 'package:snapstar_app/app/modules/setup_profile_view/views/setup_profile_screen.dart';
-import 'package:snapstar_app/app/modules/signup_view/bindings/signup_binding.dart';
-import 'package:snapstar_app/app/modules/signup_view/views/signup_screen.dart';
 import 'package:snapstar_app/app/modules/splash_view/bindings/splash_binding.dart';
 import 'package:snapstar_app/app/modules/splash_view/views/splash_screen.dart';
 import 'package:snapstar_app/app/modules/settings_view/bindings/settings_binding.dart';
@@ -32,6 +29,9 @@ import 'package:snapstar_app/app/modules/story_viewer_view/bindings/story_viewer
 import 'package:snapstar_app/app/modules/story_viewer_view/views/story_viewer_screen.dart';
 import 'package:snapstar_app/app/modules/subscribe_list_view/bindings/subscribe_list_binding.dart';
 import 'package:snapstar_app/app/modules/subscribe_list_view/views/subscribe_list_screen.dart';
+import 'package:snapstar_app/app/modules/search_view/bindings/search_binding.dart';
+import 'package:snapstar_app/app/modules/search_view/views/suggested_hashtags_screen.dart';
+import 'package:snapstar_app/app/modules/search_view/views/suggested_users_screen.dart';
 
 import 'app_routes.dart';
 
@@ -43,14 +43,8 @@ class AppPages {
       binding: SplashBinding(),
     ),
     GetPage(
-      name: Routes.signup,
-      page: () => SignupScreen(),
-      binding: SignupBinding(),
-    ),
-    GetPage(
       name: Routes.login,
       page: () => LoginScreen(),
-      binding: LoginBinding(),
     ),
     GetPage(
       name: Routes.profileSetup,
@@ -104,6 +98,18 @@ class AppPages {
       name: Routes.chatDetail,
       page: () => const ChatDetailScreen(),
       binding: ChatDetailBinding(),
+      middlewares: [AuthMiddleware()],
+    ),
+    GetPage(
+      name: Routes.searchSuggestedUsers,
+      page: () => const SuggestedUsersScreen(),
+      binding: SearchBinding(),
+      middlewares: [AuthMiddleware()],
+    ),
+    GetPage(
+      name: Routes.searchSuggestedHashtags,
+      page: () => const SuggestedHashtagsScreen(),
+      binding: SearchBinding(),
       middlewares: [AuthMiddleware()],
     ),
     GetPage(

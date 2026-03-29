@@ -57,18 +57,44 @@ class LikeController extends GetxController {
   }
 
   Future<void> _syncPostLikeState(String postId) async {
-    try {
-      final results = await Future.wait([
-        _likeRepo.checkLikeStatus(postId),
-        _likeRepo.getLikeCount(postId),
-      ]);
+    final previousLiked = likedPosts[postId] ?? false;
+    final previousCount = likeCounts[postId] ?? 0;
 
-      likedPosts[postId] = results[0] as bool;
-      likeCounts[postId] = results[1] as int;
+    try {
+      final liked = await _likeRepo.checkLikeStatus(postId);
+      likedPosts[postId] = liked;
+
+      try {
+        likeCounts[postId] = await _likeRepo.getLikeCount(postId);
+      } catch (error, stackTrace) {
+        likeCounts[postId] = previousCount;
+        if (!_isTransientNetworkError(error)) {
+          debugPrint('LikeController._syncPostLikeState count error: $error');
+          debugPrint(
+            'LikeController._syncPostLikeState count stack: $stackTrace',
+          );
+        }
+      }
     } catch (error, stackTrace) {
+      likedPosts[postId] = previousLiked;
+      likeCounts[postId] = previousCount;
+
+      if (_isTransientNetworkError(error)) {
+        return;
+      }
+
       debugPrint('LikeController._syncPostLikeState error: $error');
       debugPrint('LikeController._syncPostLikeState stack: $stackTrace');
     }
+  }
+
+  bool _isTransientNetworkError(Object error) {
+    final message = error.toString().toLowerCase();
+    return message.contains('connection reset by peer') ||
+        message.contains('connection closed before full header was received') ||
+        message.contains('clientexception') ||
+        message.contains('socketexception') ||
+        message.contains('httpexception');
   }
 
   @override

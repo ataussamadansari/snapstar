@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'push_notification_dispatcher.dart';
+
 class NotificationEventHelper {
   static bool _notificationsSupported = true;
 
@@ -12,80 +14,61 @@ class NotificationEventHelper {
     required String message,
     String? title,
     String? postId,
+    String? conversationId,
+    Map<String, dynamic>? data,
   }) async {
     if (!_notificationsSupported) {
       return;
     }
 
-    if (receiverUserId == actorUserId) {
-      return;
-    }
+    // REQUIREMENT: Removed the (receiverUserId == actorUserId) check
+    // to allow notifications for own posts.
 
     final now = DateTime.now().toIso8601String();
 
-    final candidates = <Map<String, dynamic>>[
-      {
-        'user_id': receiverUserId,
-        'actor_id': actorUserId,
-        'type': type,
-        'title': title ?? _defaultTitle(type),
-        'message': message,
-        if (postId != null) 'post_id': postId,
-        'is_read': false,
-        'is_deleted': false,
-        'created_at': now,
-        'updated_at': now,
-      },
-      {
-        'user_id': receiverUserId,
-        'actor_id': actorUserId,
-        'type': type,
-        'body': message,
-        if (postId != null) 'post_id': postId,
-        'is_read': false,
-        'is_deleted': false,
-      },
-      {
-        'user_id': receiverUserId,
-        'actor_id': actorUserId,
-        'type': type,
-        'message': message,
-        'is_read': false,
-        'is_deleted': false,
-      },
-      {
-        'user_id': receiverUserId,
-        'actor_id': actorUserId,
-        'type': type,
-        'message': message,
-      },
-      {
-        'user_id': receiverUserId,
-        'type': type,
-        'message': message,
-      },
-      {
-        'user_id': receiverUserId,
-        'message': message,
-      },
-    ];
+    final Map<String, dynamic> notificationData = {
+      'user_id': receiverUserId,
+      'actor_id': actorUserId,
+      'type': type,
+      'title': title ?? _defaultTitle(type),
+      'message': message,
+      if (postId != null) 'post_id': postId,
+      'is_read': false,
+      'is_deleted': false,
+      'created_at': now,
+      'updated_at': now,
+    };
 
-    for (var i = 0; i < candidates.length; i++) {
-      try {
-        await client.from('notifications').insert(candidates[i]);
+    try {
+      // Try to insert using the most complete schema first
+      final response = await client
+          .from('notifications')
+          .insert(notificationData)
+          .select('id')
+          .maybeSingle();
+
+      // Dispatch Push via FCM/Dispatcher
+      await PushNotificationDispatcher.dispatch(
+        targetUserId: receiverUserId,
+        title: title ?? _defaultTitle(type),
+        message: message,
+        type: type,
+        actorId: actorUserId,
+        postId: postId,
+        conversationId: conversationId,
+        notificationId: response?['id']?.toString(),
+        data: data,
+      );
+    } on PostgrestException catch (error, stackTrace) {
+      if (_isMissingNotificationsTable(error)) {
+        _notificationsSupported = false;
         return;
-      } catch (error, stackTrace) {
-        if (_isMissingNotificationsTable(error)) {
-          _notificationsSupported = false;
-          return;
-        }
-
-        final isLastAttempt = i == candidates.length - 1;
-        if (isLastAttempt) {
-          debugPrint('NotificationEventHelper.create failed: $error');
-          debugPrint('NotificationEventHelper.create stack: $stackTrace');
-        }
       }
+      debugPrint('NotificationEventHelper.create DB error: $error');
+      debugPrint('NotificationEventHelper.create stack: $stackTrace');
+    } catch (error, stackTrace) {
+      debugPrint('NotificationEventHelper.create push error: $error');
+      debugPrint('NotificationEventHelper.create stack: $stackTrace');
     }
   }
 

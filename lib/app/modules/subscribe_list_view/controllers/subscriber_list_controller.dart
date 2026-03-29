@@ -30,6 +30,8 @@ class SubscriberListController extends GetxController {
   String? _targetUserId;
   VoidCallback? _unsubscribeRelationChanges;
 
+  String? get userId => _targetUserId;
+
   @override
   void onInit() {
     super.onInit();

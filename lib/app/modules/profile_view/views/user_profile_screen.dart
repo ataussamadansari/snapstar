@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:snapstar_app/app/core/utils/helpers.dart';
 import '../../../data/models/post_model.dart';
 import '../../../data/repositories/chat_repository.dart';
+import '../../../global_widgets/app_avatar.dart';
 import '../../../global_widgets/loading_skeleton.dart';
 import '../../../global_widgets/subscribe_button.dart';
 import '../../../routes/app_routes.dart';
@@ -34,172 +35,196 @@ class UserProfileScreen extends GetView<UserProfileController> {
 
         final user = controller.userProfile.value;
         if (user == null) {
-          return const Center(child: Text('Profile not found'));
+          return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: const [
+              SizedBox(height: 160),
+              Center(child: Text('Profile not found')),
+            ],
+          );
         }
 
-        return DefaultTabController(
-          length: 3,
-          child: NestedScrollView(
-            headerSliverBuilder: (context, innerBoxIsScrolled) => [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 40,
-                            backgroundColor: Colors.grey[200],
-                            backgroundImage:
-                                (user.avatarUrl != null &&
-                                    user.avatarUrl!.isNotEmpty)
-                                ? NetworkImage(user.avatarUrl!)
-                                : null,
-                            child:
-                                (user.avatarUrl == null ||
-                                    user.avatarUrl!.isEmpty)
-                                ? Icon(
-                                    Icons.person,
-                                    size: 50,
-                                    color: Colors.grey[500],
-                                  )
-                                : null,
-                          ),
-                          Expanded(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                _buildStatColumn(
-                                  'Posts',
-                                  controller.postsCount.value,
-                                ),
-                                GestureDetector(
-                                  onTap: () {
-                                    Get.toNamed(
-                                      Routes.subscriberList,
-                                      arguments: SubscriberListArgs(
-                                        type: SubscriberListType.subscribers,
-                                        userId: user.id,
-                                      ),
-                                    );
-                                  },
-                                  child: _buildStatColumn(
-                                    'Subscriber',
-                                    controller.subscriberCount.value,
-                                  ),
-                                ),
-                                GestureDetector(
-                                  onTap: () {
-                                    Get.toNamed(
-                                      Routes.subscriberList,
-                                      arguments: SubscriberListArgs(
-                                        type: SubscriberListType.subscribing,
-                                        userId: user.id,
-                                      ),
-                                    );
-                                  },
-                                  child: _buildStatColumn(
-                                    'Subscribing',
-                                    controller.subscribingCount.value,
-                                  ),
-                                ),
-                              ],
+        return RefreshIndicator(
+          onRefresh: () async {
+            await controller.fetchProfile();
+            await controller.fetchPosts();
+            await controller.refreshFollowCounts();
+          },
+          child: DefaultTabController(
+            length: 3,
+            child: NestedScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            AppAvatar(
+                              radius: 40,
+                              avatarUrl: user.avatarUrl,
+                              backgroundColor: Colors.grey[200],
+                              iconColor: Colors.grey[500],
+                              iconSize: 50,
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        user.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      if (user.bio != null) Text(user.bio!),
-                      const SizedBox(height: 16),
-                      controller.isMyProfile
-                          ? SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton(
-                                onPressed: () {
-                                  Get.toNamed(Routes.editProfile);
-                                },
-                                child: const Text('Edit Profile'),
-                              ),
-                            )
-                          : Row(
-                              children: [
-                                Expanded(
-                                  child: SubscriberButton(
-                                    userId: user.id,
-                                    fullWidth: true,
-                                    height: 40,
-                                    borderRadius: 12,
-                                    fontSize: 14,
-                                    horizontalPadding:
-                                        const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                        ),
+                            Expanded(
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  _buildStatColumn(
+                                    'Posts',
+                                    controller.postsCount.value,
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                SizedBox(
-                                  height: 40,
-                                  child: OutlinedButton(
-                                    onPressed: () async {
-                                      // Navigate to chat with this user
-                                      try {
-                                        final chatRepo =
-                                            Get.find<ChatRepository>();
-                                        final conversationId = await chatRepo
-                                            .getOrCreateConversation(user.id);
-                                        Get.toNamed(
-                                          Routes.chatDetail,
-                                          arguments: conversationId,
-                                        );
-                                      } catch (e) {
-                                        AppHelpers.showSnackBar(
-                                          title: 'Error',
-                                          message: 'Failed to open chat',
-                                          isError: true,
-                                        );
-                                      }
+                                  GestureDetector(
+                                    onTap: () {
+                                      Get.toNamed(
+                                        Routes.subscriberList,
+                                        arguments: SubscriberListArgs(
+                                          type:
+                                              SubscriberListType.subscribers,
+                                          userId: user.id,
+                                        ),
+                                      )?.then(
+                                        (_) =>
+                                            controller.refreshFollowCounts(),
+                                      );
                                     },
-                                    child: const Icon(
-                                      Icons.chat_bubble_outline,
-                                      size: 20,
+                                    child: _buildStatColumn(
+                                      'Subscriber',
+                                      controller.subscriberCount.value,
                                     ),
                                   ),
-                                ),
-                              ],
+                                  GestureDetector(
+                                    onTap: () {
+                                      Get.toNamed(
+                                        Routes.subscriberList,
+                                        arguments: SubscriberListArgs(
+                                          type:
+                                              SubscriberListType.subscribing,
+                                          userId: user.id,
+                                        ),
+                                      )?.then(
+                                        (_) =>
+                                            controller.refreshFollowCounts(),
+                                      );
+                                    },
+                                    child: _buildStatColumn(
+                                      'Subscribing',
+                                      controller.subscribingCount.value,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                    ],
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          user.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        if (user.bio != null) Text(user.bio!),
+                        const SizedBox(height: 16),
+                        controller.isMyProfile
+                            ? SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton(
+                                  onPressed: () async {
+                                    final updated = await Get.toNamed(
+                                      Routes.editProfile,
+                                    );
+                                    if (updated == true) {
+                                      await controller.fetchProfile();
+                                    }
+                                  },
+                                  child: const Text('Edit Profile'),
+                                ),
+                              )
+                            : Row(
+                                children: [
+                                  Expanded(
+                                    child: SubscriberButton(
+                                      userId: user.id,
+                                      fullWidth: true,
+                                      height: 40,
+                                      borderRadius: 12,
+                                      fontSize: 14,
+                                      horizontalPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                          ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  SizedBox(
+                                    height: 40,
+                                    child: OutlinedButton(
+                                      onPressed: () async {
+                                        try {
+                                          final chatRepo =
+                                              Get.find<ChatRepository>();
+                                          final conversationId =
+                                              await chatRepo
+                                                  .getOrCreateConversation(
+                                                    user.id,
+                                                  );
+                                          Get.toNamed(
+                                            Routes.chatDetail,
+                                            arguments: {
+                                              'conversationId':
+                                                  conversationId,
+                                              'username': user.username,
+                                            },
+                                          );
+                                        } catch (e) {
+                                          AppHelpers.showSnackBar(
+                                            title: 'Error',
+                                            message:
+                                                'Failed to open chat',
+                                            isError: true,
+                                          );
+                                        }
+                                      },
+                                      child: const Icon(
+                                        Icons.chat_bubble_outline,
+                                        size: 20,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              SliverPersistentHeader(
-                pinned: true,
-                floating: true,
-                delegate: _UserProfileTabDelegate(
-                  TabBar(
-                    controller: controller.tabController,
-                    unselectedLabelColor: Colors.grey,
-                    tabs: const [
-                      Tab(text: 'All'),
-                      Tab(text: 'Images'),
-                      Tab(text: 'Videos'),
-                    ],
+                SliverPersistentHeader(
+                  pinned: true,
+                  floating: true,
+                  delegate: _UserProfileTabDelegate(
+                    TabBar(
+                      controller: controller.tabController,
+                      unselectedLabelColor: Colors.grey,
+                      tabs: const [
+                        Tab(text: 'All'),
+                        Tab(text: 'Images'),
+                        Tab(text: 'Videos'),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
-            body: TabBarView(
-              controller: controller.tabController,
-              children: [
-                _buildPostGrid(controller.allPosts),
-                _buildPostGrid(controller.imagePosts),
-                _buildPostGrid(controller.videoPosts),
               ],
+              body: TabBarView(
+                controller: controller.tabController,
+                children: [
+                  _buildPostGrid(controller.allPosts),
+                  _buildPostGrid(controller.imagePosts),
+                  _buildPostGrid(controller.videoPosts),
+                ],
+              ),
             ),
           ),
         );

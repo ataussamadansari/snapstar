@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:snapstar_app/app/global_widgets/app_avatar.dart';
 import 'package:snapstar_app/app/global_widgets/loading_skeleton.dart';
 import 'package:snapstar_app/app/modules/profile_view/views/widgets/post_grid_item.dart';
 import 'package:snapstar_app/app/routes/app_routes.dart';
@@ -83,27 +84,17 @@ class ProfileScreen extends GetView<ProfileController> {
                           children: [
                             Row(
                               children: [
-                                CircleAvatar(
+                                AppAvatar(
                                   radius: 40,
+                                  avatarUrl: user.avatarUrl,
                                   backgroundColor: Theme.of(context)
                                       .colorScheme
                                       .surfaceContainerHighest,
-                                  backgroundImage:
-                                      (user.avatarUrl != null &&
-                                              user.avatarUrl!.isNotEmpty)
-                                          ? NetworkImage(user.avatarUrl!)
-                                          : null,
-                                  child: (user.avatarUrl == null ||
-                                          user.avatarUrl!.isEmpty)
-                                      ? Icon(
-                                          Icons.person,
-                                          size: 50,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface
-                                              .withValues(alpha: 0.6),
-                                        )
-                                      : null,
+                                  iconColor: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.6),
+                                  iconSize: 50,
                                 ),
                                 Expanded(
                                   child: Row(
@@ -122,7 +113,7 @@ class ProfileScreen extends GetView<ProfileController> {
                                               type: SubscriberListType.subscribers,
                                               userId: user.id,
                                             ),
-                                          );
+                                          )?.then((_) => controller.refreshFollowCounts());
                                         },
                                         child: _buildStatColumn(
                                           'Subscriber',
@@ -137,7 +128,7 @@ class ProfileScreen extends GetView<ProfileController> {
                                               type: SubscriberListType.subscribing,
                                               userId: user.id,
                                             ),
-                                          );
+                                          )?.then((_) => controller.refreshFollowCounts());
                                         },
                                         child: _buildStatColumn(
                                           'Subscribing',
@@ -159,8 +150,13 @@ class ProfileScreen extends GetView<ProfileController> {
                             SizedBox(
                               width: double.infinity,
                               child: OutlinedButton(
-                                onPressed: () {
-                                  Get.toNamed(Routes.editProfile);
+                                onPressed: () async {
+                                  final updated = await Get.toNamed(
+                                    Routes.editProfile,
+                                  );
+                                  if (updated == true) {
+                                    await controller.refreshProfileData();
+                                  }
                                 },
                                 child: const Text('Edit Profile'),
                               ),

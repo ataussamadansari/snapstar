@@ -351,14 +351,26 @@ class HomeScreen extends GetView<HomeController> {
   }
 
   Widget _buildSuggestedSection() {
+    final visibleUsers = controller.users.take(12).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Text(
-            "Suggested for you",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  "Suggested for you",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Get.toNamed(Routes.searchSuggestedUsers),
+                child: const Text('See all'),
+              ),
+            ],
           ),
         ),
 
@@ -367,13 +379,13 @@ class HomeScreen extends GetView<HomeController> {
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 10),
-            itemCount: controller.users.length,
+            itemCount: visibleUsers.length,
             itemBuilder: (context, index) {
               return UserSuggestionCard(
-                user: controller.users[index],
+                user: visibleUsers[index],
                 onProfileTap: () => Get.toNamed(
                   Routes.userProfile,
-                  arguments: controller.users[index].id,
+                  arguments: visibleUsers[index].id,
                 ),
               );
             },

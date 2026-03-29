@@ -80,7 +80,7 @@ class SearchsController extends GetxController {
           limit: 25,
           offset: 0,
         ),
-        _postRepo.fetchFeedPosts(
+        _postRepo.fetchExplorePosts(
           limit: 60,
           offset: 0,
         ),

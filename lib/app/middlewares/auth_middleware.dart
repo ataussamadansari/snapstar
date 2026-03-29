@@ -1,53 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
-import '../data/repositories/auth_repository.dart';
-import '../data/repositories/user_repository.dart';
+import '../core/utils/auth_helper.dart';
+import '../presentation/controllers/auth_controller.dart';
 import '../routes/app_routes.dart';
 
 class AuthMiddleware extends GetMiddleware {
-  AuthRepository get _authRepo => Get.find<AuthRepository>();
-  UserRepository get _userRepo => Get.find<UserRepository>();
-
   @override
   int? get priority => 1;
 
   @override
-  Future<GetNavConfig?> redirectDelegate(GetNavConfig route) async {
-    if (!Get.isRegistered<AuthRepository>() ||
-        !Get.isRegistered<UserRepository>()) {
-      return GetNavConfig.fromRoute(Routes.login);
+  RouteSettings? redirect(String? route) {
+    final authController = Get.find<AuthController>();
+
+    if (!authController.isLoggedIn.value) {
+      return const RouteSettings(name: Routes.login);
     }
 
-    final userId = _authRepo.currentUserId;
-
-    if (userId == null) {
-      return GetNavConfig.fromRoute(Routes.login);
+    if (authController.isAnonymous.value && _isRestrictedRoute(route)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        AuthHelper.checkAuthAndShowModal(
+          message: 'Login with Google to continue',
+        );
+      });
+      return const RouteSettings(name: Routes.login);
     }
 
-    try {
-      final profile = await _userRepo.fetchProfile(userId);
+    return null;
+  }
 
-      if (profile == null) {
-        final currentPath = route.uri.path;
-        if (currentPath != Routes.profileSetup) {
-          return GetNavConfig.fromRoute(Routes.profileSetup);
-        }
-        return route;
-      }
-
-      if (profile.username.trim().isEmpty) {
-        final currentPath = route.uri.path;
-
-        if (currentPath != Routes.profileSetup) {
-          return GetNavConfig.fromRoute(Routes.profileSetup);
-        }
-      }
-    } catch (e) {
-      debugPrint('AuthMiddleware error: $e');
-      return GetNavConfig.fromRoute(Routes.login);
-    }
-
-    return route;
+  bool _isRestrictedRoute(String? route) {
+    const restrictedRoutes = [
+      Routes.editProfile,
+      Routes.profileSetup,
+    ];
+    return restrictedRoutes.contains(route);
   }
 }

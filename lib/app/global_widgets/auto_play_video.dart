@@ -52,6 +52,7 @@ class _AutoPlayVideoState extends State<AutoPlayVideo>
   bool _isInitialized = false;
   bool _hasError = false;
   bool _isVisibleEnough = false;
+  int _controllerVersion = 0;
 
   @override
   bool get wantKeepAlive => widget.keepAlive;
@@ -63,32 +64,57 @@ class _AutoPlayVideoState extends State<AutoPlayVideo>
   }
 
   Future<void> _init() async {
+    final currentVersion = ++_controllerVersion;
+    VideoPlayerController? nextController;
+
     try {
       final fileInfo = await VideoCacheManager.instance.getFileFromCache(
         widget.videoUrl,
       );
 
       if (fileInfo != null) {
-        _controller = VideoPlayerController.file(fileInfo.file);
+        nextController = VideoPlayerController.file(fileInfo.file);
       } else {
-        _controller = VideoPlayerController.networkUrl(
+        nextController = VideoPlayerController.networkUrl(
           Uri.parse(widget.videoUrl),
         );
         _queueDownload(widget.videoUrl);
       }
 
-      await _controller!.initialize();
-      await _controller!.setLooping(true);
-      _controller!.setVolume(widget.isMuted ? 0 : 1);
-      if (widget.enforceSinglePlayback) {
-        _singlePlaybackControllers[widget.videoId] = _controller!;
+      await nextController.initialize();
+      await nextController.setLooping(true);
+      await nextController.setVolume(widget.isMuted ? 0 : 1);
+
+      if (!mounted || currentVersion != _controllerVersion) {
+        await nextController.dispose();
+        return;
       }
-      if (!mounted) return;
-      setState(() => _isInitialized = true);
+
+      final previousController = _controller;
+      _controller = nextController;
+      _hasError = false;
+      _isInitialized = true;
+
+      if (previousController != null && previousController != nextController) {
+        await previousController.pause();
+        await previousController.dispose();
+      }
+
+      if (widget.enforceSinglePlayback) {
+        _singlePlaybackControllers[widget.videoId] = nextController;
+      }
+
+      setState(() {});
       _syncPlaybackState();
     } catch (_) {
-      if (!mounted) return;
-      setState(() => _hasError = true);
+      if (nextController != null) {
+        await nextController.dispose();
+      }
+      if (!mounted || currentVersion != _controllerVersion) return;
+      setState(() {
+        _hasError = true;
+        _isInitialized = false;
+      });
     }
   }
 
@@ -130,13 +156,19 @@ class _AutoPlayVideoState extends State<AutoPlayVideo>
 
   @override
   void dispose() {
+    _controllerVersion++;
     if (widget.enforceSinglePlayback) {
       _singlePlaybackControllers.remove(widget.videoId);
       if (_singlePlaybackActiveId == widget.videoId) {
         _singlePlaybackActiveId = null;
       }
     }
-    _controller?.dispose();
+    final controller = _controller;
+    _controller = null;
+    if (controller != null) {
+      controller.pause();
+      controller.dispose();
+    }
     super.dispose();
   }
 

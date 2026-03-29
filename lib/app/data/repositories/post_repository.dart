@@ -126,11 +126,13 @@ class PostRepository {
     int limit = 20,
     DateTime? cursorCreatedAt,
     String? cursorId,
+    double? cursorScore,
   }) async {
     final page = await _service.fetchVideoPostsByCursor(
       limit: limit,
       cursorCreatedAt: cursorCreatedAt,
       cursorId: cursorId,
+      cursorScore: cursorScore,
     );
 
     return CursorPage<PostModel>(

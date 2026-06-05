@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:snapstar_app/app/middlewares/auth_middleware.dart';
 import 'package:snapstar_app/app/modules/chat_view/bindings/chat_detail_binding.dart';
@@ -32,6 +33,9 @@ import 'package:snapstar_app/app/modules/subscribe_list_view/views/subscribe_lis
 import 'package:snapstar_app/app/modules/search_view/bindings/search_binding.dart';
 import 'package:snapstar_app/app/modules/search_view/views/suggested_hashtags_screen.dart';
 import 'package:snapstar_app/app/modules/search_view/views/suggested_users_screen.dart';
+import 'package:snapstar_app/app/modules/hashtag_view/views/hashtag_posts_screen.dart';
+import 'package:snapstar_app/app/data/models/post_model.dart';
+import 'package:snapstar_app/app/modules/post_view/views/post_detail_screen.dart';
 
 import 'app_routes.dart';
 
@@ -152,6 +156,22 @@ class AppPages {
       name: Routes.settingsContentStyle,
       page: () => const ContentStyleSettingsScreen(),
       binding: SettingsBinding(),
+      middlewares: [AuthMiddleware()],
+    ),
+    GetPage(
+      name: Routes.hashtagPosts,
+      page: () => const HashtagPostsScreen(),
+      middlewares: [AuthMiddleware()],
+    ),
+    GetPage(
+      name: Routes.postDetail,
+      page: () {
+        final args = Get.arguments;
+        if (args is PostModel) {
+          return PostDetailScreen(post: args);
+        }
+        return const Scaffold(body: Center(child: Text('Post not found')));
+      },
       middlewares: [AuthMiddleware()],
     ),
   ];

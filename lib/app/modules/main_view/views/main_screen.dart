@@ -42,9 +42,10 @@ class MainScreen extends GetView<MainController> {
               () => BottomNavigationBar(
             currentIndex: controller.currentIndex.value,
             onTap: controller.changeIndex,
-            type: BottomNavigationBarType.fixed, // 5 items ke liye fixed best hai
-            selectedItemColor: Theme.of(context).primaryColor,
-            unselectedItemColor: Colors.grey,
+            type: BottomNavigationBarType.fixed,
+            selectedItemColor: Theme.of(context).colorScheme.primary,
+            unselectedItemColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
+            backgroundColor: Theme.of(context).colorScheme.surface,
             showSelectedLabels: true,
             showUnselectedLabels: true,
             items: const [

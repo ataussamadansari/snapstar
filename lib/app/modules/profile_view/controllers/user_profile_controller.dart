@@ -8,6 +8,7 @@ import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/post_repository.dart';
 import '../../../data/repositories/subscriber_repository.dart';
 import '../../../data/repositories/user_repository.dart';
+import '../../../data/services/local_cache_service.dart';
 
 class UserProfileController extends GetxController
     with GetSingleTickerProviderStateMixin {
@@ -17,14 +18,21 @@ class UserProfileController extends GetxController
     this._authRepo,
     this._subscriberRepo,
     this.userId,
-  );
+    this._cacheService, {
+    this.usernameToResolve,
+  });
 
   final UserRepository _userRepo;
   final PostRepository _postRepo;
   final AuthRepository _authRepo;
   final SubscriberRepository _subscriberRepo;
+  final LocalCacheService _cacheService;
 
-  final String userId;
+  String userId;
+  final String? usernameToResolve;
+
+  static const Duration _profileCacheTtl = Duration(minutes: 30);
+  static const Duration _postsCacheTtl = Duration(minutes: 5);
 
   late TabController tabController;
 
@@ -50,14 +58,104 @@ class UserProfileController extends GetxController
     super.onInit();
     tabController = TabController(length: 3, vsync: this);
 
-    fetchProfile();
-    fetchPosts();
-    _refreshPostCount();
-    _refreshFollowCounts();
-    _subscribeToUserPostChanges();
-    _subscribeToSubscriberChanges();
-    _subscribeToUserProfileChanges();
+    // Agar username pass hua hai to pehle resolve karo
+    if (usernameToResolve != null && usernameToResolve!.isNotEmpty && userId.isEmpty) {
+      _resolveUsername(usernameToResolve!);
+    } else {
+      // Pehle cache se instantly dikhao, phir background mein fresh data lo
+      _hydrateFromCache().then((_) {
+        fetchProfile();
+        fetchPosts();
+        _refreshFollowCounts();
+      });
+
+      _subscribeToUserPostChanges();
+      _subscribeToSubscriberChanges();
+      _subscribeToUserProfileChanges();
+    }
   }
+
+  Future<void> _resolveUsername(String username) async {
+    isLoading.value = true;
+    try {
+      final profile = await _userRepo.fetchProfileByUsername(username);
+      if (profile == null) {
+        isLoading.value = false;
+        return;
+      }
+      userId = profile.id;
+      userProfile.value = profile;
+      subscriberCount.value = profile.subscriberCount;
+      subscribingCount.value = profile.subscribingCount;
+      isLoading.value = false;
+
+      // Baaki data load karo
+      fetchPosts();
+      _refreshFollowCounts();
+      _subscribeToUserPostChanges();
+      _subscribeToSubscriberChanges();
+      _subscribeToUserProfileChanges();
+    } catch (e, st) {
+      debugPrint('UserProfileController._resolveUsername error: $e\n$st');
+      isLoading.value = false;
+    }
+  }
+
+  // ─── Cache: Hydrate ────────────────────────────────────────────────────────
+
+  Future<void> _hydrateFromCache() async {
+    // Profile cache
+    final profilePayload = await _cacheService.getJson('uprofile_user_$userId');
+    if (profilePayload != null) {
+      try {
+        final profile = UserModel.fromJson(profilePayload);
+        userProfile.value = profile;
+        subscriberCount.value = profile.subscriberCount;
+        subscribingCount.value = profile.subscribingCount;
+        isLoading.value = false;
+      } catch (_) {}
+    }
+
+    // Posts cache
+    final postsPayload = await _cacheService.getJson('uprofile_posts_$userId');
+    final itemsRaw = postsPayload?['items'];
+    if (itemsRaw is List && itemsRaw.isNotEmpty) {
+      try {
+        final restored = itemsRaw
+            .whereType<Map>()
+            .map((row) => PostModel.fromJson(Map<String, dynamic>.from(row)))
+            .toList();
+        if (restored.isNotEmpty && allPosts.isEmpty) {
+          _applyPostBuckets(restored);
+          isPostLoading.value = false;
+        }
+      } catch (_) {}
+    }
+  }
+
+  // ─── Cache: Persist ────────────────────────────────────────────────────────
+
+  Future<void> _persistProfileCache(UserModel profile) async {
+    await _cacheService.putJson(
+      'uprofile_user_$userId',
+      profile.toJson(),
+      ttl: _profileCacheTtl,
+    );
+  }
+
+  Future<void> _persistPostsCache() async {
+    if (allPosts.isEmpty) return;
+    final payload = <String, dynamic>{
+      'items': allPosts.map((post) => _postToJson(post)).toList(),
+    };
+    await _cacheService.putJson(
+      'uprofile_posts_$userId',
+      payload,
+      ttl: _postsCacheTtl,
+    );
+  }
+
+  // ─── Fetch ─────────────────────────────────────────────────────────────────
 
   Future<void> fetchProfile() async {
     try {
@@ -67,6 +165,7 @@ class UserProfileController extends GetxController
       if (profile != null) {
         subscriberCount.value = profile.subscriberCount;
         subscribingCount.value = profile.subscribingCount;
+        await _persistProfileCache(profile);
       }
     } catch (error, stackTrace) {
       debugPrint('UserProfileController.fetchProfile error: $error');
@@ -111,6 +210,7 @@ class UserProfileController extends GetxController
       final posts = await _postRepo.fetchUserPosts(userId);
       _applyPostBuckets(posts);
       _refreshPostCount();
+      await _persistPostsCache();
     } catch (error, stackTrace) {
       debugPrint('UserProfileController.fetchPosts error: $error');
       debugPrint('UserProfileController.fetchPosts stack: $stackTrace');
@@ -133,6 +233,7 @@ class UserProfileController extends GetxController
         );
         _applyPostBuckets(next);
         _refreshPostCount();
+        _persistPostsCache(); // cache bhi update karo
       },
     );
   }
@@ -160,6 +261,40 @@ class UserProfileController extends GetxController
       postsCount.value = posts.length;
     }
   }
+
+  // ─── Cache Helper ──────────────────────────────────────────────────────────
+
+  Map<String, dynamic> _postToJson(PostModel post) => {
+        'id': post.id,
+        'user_id': post.userId,
+        'media_type': post.mediaType.name,
+        'caption': post.caption,
+        'media_urls': post.mediaUrls,
+        'thumbnail_urls': post.thumbnailUrls,
+        'like_count': post.likeCount,
+        'comment_count': post.commentCount,
+        'share_count': post.shareCount,
+        'is_deleted': post.isDeleted,
+        'location': post.location,
+        'created_at': post.createdAt.toUtc().toIso8601String(),
+        'updated_at': post.updatedAt.toUtc().toIso8601String(),
+        if (post.user != null)
+          'users': {
+            'id': post.user!.id,
+            'name': post.user!.name,
+            'username': post.user!.username,
+            'email': post.user!.email,
+            'phone': post.user!.phone,
+            'avatar_url': post.user!.avatarUrl,
+            'bio': post.user!.bio,
+            'role': post.user!.role,
+            'posts_count': post.user!.postsCount,
+            'subscriber_count': post.user!.subscriberCount,
+            'subscribing_count': post.user!.subscribingCount,
+            'created_at': post.user!.createdAt.toUtc().toIso8601String(),
+            'updated_at': post.user!.updatedAt.toUtc().toIso8601String(),
+          },
+      };
 
   void _subscribeToUserProfileChanges() {
     if (_userProfileChannel != null) {

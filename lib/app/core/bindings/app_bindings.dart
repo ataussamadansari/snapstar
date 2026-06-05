@@ -7,6 +7,8 @@ import 'package:snapstar_app/app/data/controllers/notification_badge_controller.
 import 'package:snapstar_app/app/data/controllers/post_story_style_controller.dart';
 import 'package:snapstar_app/app/data/controllers/share_controller.dart';
 import 'package:snapstar_app/app/data/controllers/story_controller.dart';
+import 'package:snapstar_app/app/data/controllers/story_like_controller.dart';
+import 'package:snapstar_app/app/data/repositories/story_like_repository.dart';
 import 'package:snapstar_app/app/data/controllers/subscriber_controller.dart';
 import 'package:snapstar_app/app/data/controllers/upload_task_controller.dart';
 import 'package:snapstar_app/app/data/providers/auth_provider.dart';
@@ -37,6 +39,14 @@ import 'package:snapstar_app/app/data/services/storage_service.dart';
 import 'package:snapstar_app/app/data/services/story_service.dart';
 import 'package:snapstar_app/app/data/services/subscriber_service.dart';
 import 'package:snapstar_app/app/data/services/user_service.dart';
+import 'package:snapstar_app/app/data/services/hashtag_service.dart';
+import 'package:snapstar_app/app/data/providers/hashtag_provider.dart';
+import 'package:snapstar_app/app/data/providers/save_provider.dart';
+import 'package:snapstar_app/app/data/services/save_service.dart';
+import 'package:snapstar_app/app/data/repositories/save_repository.dart';
+import 'package:snapstar_app/app/data/controllers/save_controller.dart';
+import 'package:snapstar_app/app/data/providers/comment_like_provider.dart';
+import 'package:snapstar_app/app/data/controllers/comment_like_controller.dart';
 import 'package:snapstar_app/app/domain/usecases/login_anonymously_usecase.dart';
 import 'package:snapstar_app/app/domain/usecases/login_with_google_usecase.dart';
 import 'package:snapstar_app/app/domain/usecases/logout_usecase.dart';
@@ -155,6 +165,35 @@ class AppBindings extends Bindings {
     Get.put<StorageService>(StorageService(), permanent: true);
     Get.put<LocalCacheService>(LocalCacheService(), permanent: true);
 
+    // Hashtag system
+    Get.put<HashtagProvider>(HashtagProvider(client), permanent: true);
+    Get.put<HashtagService>(
+      HashtagService(Get.find<HashtagProvider>()),
+      permanent: true,
+    );
+
+    // Save / Bookmark system
+    Get.put<SaveProvider>(SaveProvider(client), permanent: true);
+    Get.put<SaveService>(
+      SaveService(Get.find<SaveProvider>()),
+      permanent: true,
+    );
+    Get.put<SaveRepository>(
+      SaveRepository(Get.find<SaveService>(), Get.find<AuthRepository>()),
+      permanent: true,
+    );
+    Get.put<SaveController>(
+      SaveController(Get.find<SaveRepository>()),
+      permanent: true,
+    );
+
+    // Comment Like system
+    Get.put<CommentLikeProvider>(CommentLikeProvider(client), permanent: true);
+    Get.put<CommentLikeController>(
+      CommentLikeController(Get.find<CommentLikeProvider>()),
+      permanent: true,
+    );
+
     Get.put<AuthController>(
       AuthController(
         authRepository: Get.find<AuthRepository>(),
@@ -207,5 +246,15 @@ class AppBindings extends Bindings {
     );
     Get.put<ShorebirdService>(ShorebirdService(), permanent: true);
     Get.put<AnalyticsService>(AnalyticsService(), permanent: true);
+
+    // Story likes
+    Get.put<StoryLikeRepository>(
+      StoryLikeRepository(),
+      permanent: true,
+    );
+    Get.put<StoryLikeController>(
+      StoryLikeController(Get.find<StoryLikeRepository>()),
+      permanent: true,
+    );
   }
 }

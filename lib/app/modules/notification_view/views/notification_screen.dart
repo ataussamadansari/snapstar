@@ -187,7 +187,7 @@ class _NotificationCard extends StatelessWidget {
                       timeLabel,
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade600,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
                       ),
                     ),
                     if (!isRead) ...[
@@ -231,7 +231,7 @@ class _StateWidget extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.notifications_off_outlined, color: Colors.grey.shade500),
+            Icon(Icons.notifications_off_outlined, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
             const SizedBox(height: 10),
             Text(
               title,

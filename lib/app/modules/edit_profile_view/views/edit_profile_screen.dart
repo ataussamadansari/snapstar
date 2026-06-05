@@ -34,10 +34,10 @@ class EditProfileScreen extends GetView<EditProfileController> {
                   )
                 : TextButton(
                     onPressed: controller.updateProfile,
-                    child: const Text(
+                    child: Text(
                       'Done',
                       style: TextStyle(
-                        color: Colors.blue,
+                        color: Theme.of(context).colorScheme.primary,
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
@@ -57,7 +57,7 @@ class EditProfileScreen extends GetView<EditProfileController> {
             key: controller.formKey,
             child: Column(
               children: [
-                _buildImagePicker(),
+                _buildImagePicker(context),
                 const SizedBox(height: 10),
                 _buildSectionHeader('Public Information'),
                 _buildInputField(
@@ -71,7 +71,7 @@ class EditProfileScreen extends GetView<EditProfileController> {
                   controller.nameCtrl,
                   Icons.person_outline,
                 ),
-                _buildBioField(),
+                _buildBioField(context),
                 const SizedBox(height: 10),
                 _buildSectionHeader('Private Information'),
                 _buildInputField(
@@ -97,7 +97,7 @@ class EditProfileScreen extends GetView<EditProfileController> {
     );
   }
 
-  Widget _buildImagePicker() {
+  Widget _buildImagePicker(BuildContext context) {
     return Column(
       children: [
         Stack(
@@ -106,7 +106,7 @@ class EditProfileScreen extends GetView<EditProfileController> {
               if (controller.selectedImage.value != null) {
                 return CircleAvatar(
                   radius: 50,
-                  backgroundColor: Colors.grey[200],
+                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                   backgroundImage: FileImage(controller.selectedImage.value!),
                 );
               }
@@ -114,8 +114,8 @@ class EditProfileScreen extends GetView<EditProfileController> {
               return AppAvatar(
                 radius: 50,
                 avatarUrl: controller.userProfile.value?.avatarUrl,
-                backgroundColor: Colors.grey[200],
-                iconColor: Colors.grey,
+                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                iconColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                 iconSize: 50,
               );
             }),
@@ -124,10 +124,10 @@ class EditProfileScreen extends GetView<EditProfileController> {
               right: 0,
               child: GestureDetector(
                 onTap: controller.pickImage,
-                child: const CircleAvatar(
+                child: CircleAvatar(
                   radius: 16,
-                  backgroundColor: Colors.blue,
-                  child: Icon(Icons.camera_alt, size: 14, color: Colors.white),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  child: Icon(Icons.camera_alt, size: 14, color: Theme.of(context).colorScheme.onPrimary),
                 ),
               ),
             ),
@@ -136,9 +136,9 @@ class EditProfileScreen extends GetView<EditProfileController> {
         const SizedBox(height: 10),
         GestureDetector(
           onTap: controller.pickImage,
-          child: const Text(
+          child: Text(
             'Edit and adjust profile picture',
-            style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+            style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold),
           ),
         ),
       ],
@@ -146,16 +146,18 @@ class EditProfileScreen extends GetView<EditProfileController> {
   }
 
   Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          title,
-          style: const TextStyle(
-            color: Colors.grey,
-            fontWeight: FontWeight.bold,
-            fontSize: 13,
+    return Builder(
+      builder: (context) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            title,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
           ),
         ),
       ),
@@ -224,7 +226,7 @@ class EditProfileScreen extends GetView<EditProfileController> {
     );
   }
 
-  Widget _buildBioField() {
+  Widget _buildBioField(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
@@ -248,7 +250,10 @@ class EditProfileScreen extends GetView<EditProfileController> {
           Obx(
             () => Text(
               '${controller.bioLength.value} / 150',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+              ),
             ),
           ),
         ],

@@ -7,8 +7,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:video_compress/video_compress.dart';
 
 import '../../../core/utils/auth_helper.dart';
+import '../../../core/utils/hashtag_helper.dart';
 import '../../../core/utils/helpers.dart';
 import '../../../data/controllers/upload_task_controller.dart';
+import '../../../data/services/hashtag_service.dart';
 import '../../../modules/home_view/controllers/home_controller.dart';
 import '../../../data/models/post_model.dart';
 import '../../../data/repositories/auth_repository.dart';
@@ -24,6 +26,8 @@ class AddPostController extends GetxController {
   final PostRepository repo;
   final AuthRepository _authRepo;
   final UploadTaskController _uploadTaskController = Get.find();
+  HashtagService? get _hashtagService =>
+      Get.isRegistered<HashtagService>() ? Get.find<HashtagService>() : null;
 
   final ImagePicker _picker = ImagePicker();
 
@@ -230,7 +234,19 @@ class AddPostController extends GetxController {
           updatedAt: DateTime.now(),
         );
 
-        await repo.createPost(post);
+        final createdPostId = await repo.createPost(post);
+
+        // ✅ Hashtags process karo (fire & forget — post block nahi hogi)
+        final hashtags = HashtagHelper.extractHashtags(captionSnapshot);
+        if (hashtags.isNotEmpty && createdPostId != null) {
+          unawaited(
+            _hashtagService?.processPostHashtags(
+              postId: createdPostId,
+              tags: hashtags,
+            ),
+          );
+        }
+
         _uploadTaskController.complete(taskId);
 
         if (Get.isRegistered<HomeController>()) {

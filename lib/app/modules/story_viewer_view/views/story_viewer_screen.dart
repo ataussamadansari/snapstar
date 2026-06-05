@@ -4,6 +4,7 @@ import 'package:video_player/video_player.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import 'package:snapstar_app/app/core/utils/date_time_extension.dart';
+import 'package:snapstar_app/app/core/utils/image_cache_manager.dart';
 import 'package:snapstar_app/app/core/utils/video_cache_manager.dart';
 import 'package:snapstar_app/app/global_widgets/app_avatar.dart';
 
@@ -109,7 +110,7 @@ class StoryViewerScreen extends GetView<StoryViewerController> {
                             AppAvatar(
                               radius: 18,
                               avatarUrl: story.user?.avatarUrl,
-                              backgroundColor: Colors.grey.shade800,
+                              backgroundColor: Colors.white.withValues(alpha: 0.2),
                               iconColor: Colors.white,
                             ),
                             const SizedBox(width: 10),
@@ -213,10 +214,125 @@ class StoryViewerScreen extends GetView<StoryViewerController> {
                     ),
                   ),
                 ),
+                // ─── Bottom Bar: Like + View Count ───────────────────────────
+                Positioned(
+                  bottom: 16,
+                  left: 16,
+                  right: 16,
+                  child: _StoryBottomBar(controller: controller),
+                ),
               ],
             ),
           );
         }),
+      ),
+    );
+  }
+}
+
+class _StoryBottomBar extends StatelessWidget {
+  const _StoryBottomBar({required this.controller});
+  final StoryViewerController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final storyId = controller.currentStory?.id;
+      if (storyId == null) return const SizedBox.shrink();
+
+      final isLiked = controller.isCurrentLiked;
+      final likeCount = controller.currentLikeCount;
+      final viewCount = controller.currentViewCount;
+      final isOwner = controller.isMyStory;
+
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // View count — sirf story owner ko dikhao
+          if (isOwner)
+            _StatChip(
+              icon: Icons.visibility_outlined,
+              label: _formatCount(viewCount),
+            )
+          else
+            const SizedBox.shrink(),
+
+          // Like button — owner ko nahi dikhao
+          if (!isOwner)
+            GestureDetector(
+              onTap: () => controller.toggleLike(),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: Row(
+                  key: ValueKey(isLiked),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isLiked ? Icons.favorite : Icons.favorite_border,
+                      color: isLiked ? Colors.redAccent : Colors.white,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _formatCount(likeCount),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        shadows: [
+                          Shadow(blurRadius: 4, color: Colors.black54),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            // Owner: like count bhi dikhao
+            _StatChip(
+              icon: Icons.favorite_border,
+              label: _formatCount(likeCount),
+            ),
+        ],
+      );
+    });
+  }
+
+  String _formatCount(int count) {
+    if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
+    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}K';
+    return count.toString();
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  const _StatChip({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white70, size: 16),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -458,6 +574,7 @@ class _StoryMediaState extends State<_StoryMedia> {
         children: [
           CachedNetworkImage(
             imageUrl: widget.story.mediaUrls.first,
+            cacheManager: AppImageCacheManager.instance,
             fit: BoxFit.cover,
             width: double.infinity,
             height: double.infinity,

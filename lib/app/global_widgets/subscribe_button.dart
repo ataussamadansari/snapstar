@@ -50,30 +50,30 @@ class _SubscriberButtonState extends State<SubscriberButton> {
       switch (state) {
         case SubscribeState.mutual:
           text = "Subscribed";
-          bgColor = Colors.grey.shade300;
-          textColor = Colors.black;
-          borderColor = Colors.grey.shade400;
+          bgColor = Theme.of(context).colorScheme.surfaceContainerHighest;
+          textColor = Theme.of(context).colorScheme.onSurface;
+          borderColor = Theme.of(context).colorScheme.outline;
           break;
 
         case SubscribeState.subscribed:
           text = "Subscribed";
-          bgColor = Colors.grey.shade300;
-          textColor = Colors.black;
-          borderColor = Colors.grey.shade400;
+          bgColor = Theme.of(context).colorScheme.surfaceContainerHighest;
+          textColor = Theme.of(context).colorScheme.onSurface;
+          borderColor = Theme.of(context).colorScheme.outline;
           break;
 
         case SubscribeState.subscribeBack:
           text = "Subscribe Back";
-          bgColor = Colors.blue;
-          textColor = Colors.white;
-          borderColor = Colors.blue;
+          bgColor = Theme.of(context).colorScheme.primary;
+          textColor = Theme.of(context).colorScheme.onPrimary;
+          borderColor = Theme.of(context).colorScheme.primary;
           break;
 
         case SubscribeState.none:
           text = "Subscribe";
-          bgColor = Colors.blue;
-          textColor = Colors.white;
-          borderColor = Colors.blue;
+          bgColor = Theme.of(context).colorScheme.primary;
+          textColor = Theme.of(context).colorScheme.onPrimary;
+          borderColor = Theme.of(context).colorScheme.primary;
       }
 
       final borderRadius = BorderRadius.circular(widget.borderRadius);

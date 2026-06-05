@@ -68,8 +68,8 @@ class SubscriberListScreen extends GetView<SubscriberListController> {
                             AppAvatar(
                               radius: 22,
                               avatarUrl: user.avatarUrl,
-                              backgroundColor: Colors.grey.shade200,
-                              iconColor: Colors.grey.shade600,
+                              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                              iconColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -86,7 +86,7 @@ class SubscriberListScreen extends GetView<SubscriberListController> {
                                     Text(
                                       user.name,
                                       style: TextStyle(
-                                        color: Colors.grey.shade600,
+                                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
                                         fontSize: 13,
                                       ),
                                     ),

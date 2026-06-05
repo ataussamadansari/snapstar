@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hugeicons/hugeicons.dart';
@@ -374,9 +375,16 @@ class _ReelViewState extends State<_ReelView>
         videoId: _post.id,
         isMuted: _mediaController.isMuted.value,
         isActive: true,
-        respectVisibility: false,
+        respectVisibility: true,
         enforceSinglePlayback: false,
         keepAlive: false,
+        onWatchTime: (watched, total) {
+          Get.find<ReelsController>().recordWatch(
+            postId: _post.id,
+            watchedSeconds: watched,
+            totalSeconds: total,
+          );
+        },
       ),
     );
   }
@@ -436,6 +444,16 @@ class _ReelViewState extends State<_ReelView>
           );
         }),
         const SizedBox(height: 18),
+        // Watch count — sirf post owner ko dikhao
+        if (_post.userId == _authRepo.currentUserId && _post.watchCount > 0)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 18),
+            child: _ActionButton(
+              icon: Icons.visibility_outlined,
+              count: NumberFormatter.format(_post.watchCount),
+              onTap: null,
+            ),
+          ),
         Container(
           width: 30,
           height: 30,
@@ -467,19 +485,24 @@ class _ReelViewState extends State<_ReelView>
     const minExpandableLength = 85;
     final canExpand = caption.length > minExpandableLength;
 
+    // Caption ko words mein split karke tappable spans banao
+    final spans = _buildCaptionSpans(caption);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          caption,
+        RichText(
           maxLines: _isCaptionExpanded ? 8 : 2,
           overflow: _isCaptionExpanded
               ? TextOverflow.visible
               : TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 13,
-            height: 1.3,
+          text: TextSpan(
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              height: 1.3,
+            ),
+            children: spans,
           ),
         ),
         if (canExpand)
@@ -503,6 +526,40 @@ class _ReelViewState extends State<_ReelView>
           ),
       ],
     );
+  }
+
+  List<TextSpan> _buildCaptionSpans(String caption) {
+    final words = caption.split(' ');
+    return words.map((word) {
+      if (word.startsWith('#') && word.length > 1) {
+        final tag = word.substring(1).replaceAll(RegExp(r'[^\w]'), '');
+        return TextSpan(
+          text: '$word ',
+          style: const TextStyle(
+            color: Colors.lightBlueAccent,
+            fontWeight: FontWeight.w600,
+          ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () => Get.toNamed(Routes.hashtagPosts, arguments: tag),
+        );
+      } else if (word.startsWith('@') && word.length > 1) {
+        final username = word.substring(1).replaceAll(RegExp(r'[^\w.]'), '');
+        return TextSpan(
+          text: '$word ',
+          style: const TextStyle(
+            color: Colors.purpleAccent,
+            fontWeight: FontWeight.w600,
+          ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () => Get.toNamed(Routes.userProfile, arguments: username),
+        );
+      } else {
+        return TextSpan(
+          text: '$word ',
+          style: const TextStyle(color: Colors.white),
+        );
+      }
+    }).toList();
   }
 }
 

@@ -72,8 +72,8 @@ class _SuggestedUserListTile extends StatelessWidget {
             AppAvatar(
               radius: 24,
               avatarUrl: avatarUrl,
-              backgroundColor: Colors.grey.shade200,
-              iconColor: Colors.grey.shade600,
+              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              iconColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -94,7 +94,7 @@ class _SuggestedUserListTile extends StatelessWidget {
                     '@${user.username}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: Colors.grey.shade600),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55)),
                   ),
                 ],
               ),

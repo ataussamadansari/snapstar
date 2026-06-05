@@ -43,7 +43,10 @@ class ShareController extends GetxController {
     shareCounts[postId] = previousCount + 1;
 
     try {
-      await _postRepo.incrementShareCount(postId);
+      final counted = await _postRepo.incrementShareCount(postId);
+      if (!counted) {
+        shareCounts[postId] = previousCount;
+      }
 
       if (post.mediaUrls.isNotEmpty) {
         await Clipboard.setData(ClipboardData(text: post.mediaUrls.first));

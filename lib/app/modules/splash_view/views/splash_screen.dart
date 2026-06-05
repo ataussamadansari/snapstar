@@ -9,12 +9,11 @@ class SplashScreen extends GetView<SplashController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFFAFAFA),
-      body: const Center(
+      body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image(image: AssetImage("assets/images/logo.png")),
+            Image(image: const AssetImage("assets/images/logo.png")),
           ],
         ),
       ),

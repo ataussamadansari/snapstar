@@ -20,7 +20,14 @@ class LightThemeData {
         onSurface: AppColors.pureBlack,
         onError: AppColors.pureWhite,
         surfaceContainerHighest: AppColors.gray50,
+        outline: AppColors.gray200,
+        outlineVariant: AppColors.gray100,
+        surfaceContainerLowest: AppColors.pureWhite,
+        surfaceContainerLow: AppColors.gray50,
+        surfaceContainer: AppColors.gray100,
+        surfaceContainerHigh: AppColors.gray100,
       ),
+      dividerColor: AppColors.gray200,
 
       // App Bar Theme
       appBarTheme: const AppBarTheme(

@@ -1,16 +1,19 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../core/utils/helpers.dart';
 import '../core/utils/date_time_extension.dart';
+import '../core/utils/image_cache_manager.dart';
 import '../core/utils/number_formatter.dart';
 import '../core/utils/reels_navigation_helper.dart';
 import '../data/controllers/comment_controller.dart';
 import '../data/controllers/global_media_controller.dart';
 import '../data/controllers/like_controller.dart';
 import '../data/controllers/post_story_style_controller.dart';
+import '../data/controllers/save_controller.dart';
 import '../data/controllers/share_controller.dart';
 import '../data/models/post_model.dart';
 import '../data/repositories/auth_repository.dart';
@@ -49,6 +52,7 @@ class _PostCardState extends State<PostCard> {
   final _commentController = Get.find<CommentController>();
   final _likeController = Get.find<LikeController>();
   final _shareController = Get.find<ShareController>();
+  final _saveController = Get.find<SaveController>();
   final _styleController = Get.find<PostStoryStyleController>();
   final _postRepo = Get.find<PostRepository>();
   final _authRepo = Get.find<AuthRepository>();
@@ -57,6 +61,7 @@ class _PostCardState extends State<PostCard> {
   late final PageController _mediaPageController;
   int _currentMediaIndex = 0;
   bool _isPostActionLoading = false;
+  bool _isCaptionExpanded = false;
   final Map<String, double> _resolvedAspectRatios = <String, double>{};
 
   bool get hasCaption => _post.caption.trim().isNotEmpty;
@@ -73,6 +78,7 @@ class _PostCardState extends State<PostCard> {
       _likeController.initializePost(_post.id, _post.likeCount);
       _commentController.initializePost(_post.id, _post.commentCount);
       _shareController.initializePost(_post.id, _post.shareCount);
+      _saveController.initializePost(_post.id);
     });
 
     _primeInitialMediaRatios();
@@ -93,6 +99,7 @@ class _PostCardState extends State<PostCard> {
         _likeController.initializePost(_post.id, _post.likeCount);
         _commentController.initializePost(_post.id, _post.commentCount);
         _shareController.initializePost(_post.id, _post.shareCount);
+        _saveController.initializePost(_post.id);
       });
     }
 
@@ -294,9 +301,10 @@ class _PostCardState extends State<PostCard> {
               onDoubleTap: _handleLike,
               child: CachedNetworkImage(
                 imageUrl: imageUrl,
+                cacheManager: AppImageCacheManager.instance,
                 fit: BoxFit.cover,
                 placeholder: (context, url) => Container(
-                  color: Colors.grey.shade200,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   alignment: Alignment.center,
                   child: const SizedBox(
                     width: 28,
@@ -305,11 +313,11 @@ class _PostCardState extends State<PostCard> {
                   ),
                 ),
                 errorWidget: (context, url, error) => Container(
-                  color: Colors.grey.shade200,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   alignment: Alignment.center,
-                  child: const Icon(
+                  child: Icon(
                     Icons.broken_image_outlined,
-                    color: Colors.grey,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                   ),
                 ),
               ),
@@ -343,9 +351,10 @@ class _PostCardState extends State<PostCard> {
               itemBuilder: (context, index) {
                 return CachedNetworkImage(
                   imageUrl: _post.mediaUrls[index],
+                  cacheManager: AppImageCacheManager.instance,
                   fit: BoxFit.cover,
                   placeholder: (context, url) => Container(
-                    color: Colors.grey.shade200,
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
                     alignment: Alignment.center,
                     child: const SizedBox(
                       width: 28,
@@ -354,11 +363,11 @@ class _PostCardState extends State<PostCard> {
                     ),
                   ),
                   errorWidget: (context, url, error) => Container(
-                    color: Colors.grey.shade200,
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
                     alignment: Alignment.center,
-                    child: const Icon(
+                    child: Icon(
                       Icons.broken_image_outlined,
-                      color: Colors.grey,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                     ),
                   ),
                 );
@@ -489,6 +498,31 @@ class _PostCardState extends State<PostCard> {
             ),
           ),
           const Spacer(),
+          // Save / Bookmark button — right side
+          Obx(
+            () => InkWell(
+              onTap: () => _saveController.toggleSave(_post.id),
+              borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: _saveController.isLoading(_post.id)
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        _saveController.isSaved(_post.id)
+                            ? Icons.bookmark
+                            : Icons.bookmark_border,
+                        size: 24,
+                        color: _saveController.isSaved(_post.id)
+                            ? Theme.of(context).primaryColor
+                            : null,
+                      ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -578,20 +612,40 @@ class _PostCardState extends State<PostCard> {
   }
 
   Widget _buildCaptionSection() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 2),
-      child: RichText(
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        text: TextSpan(
-          style: DefaultTextStyle.of(context).style.copyWith(fontSize: 13),
-          children: [
-            TextSpan(
-              text: '${_post.user?.username ?? ''} ',
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            ..._buildCaptionSpans(_post.caption),
-          ],
+    final caption = _post.caption.trim();
+    if (caption.isEmpty) return const SizedBox.shrink();
+
+    // Caption 120 char se zyada ho toh "more" button dikhao
+    final isLong = caption.length > 120;
+    final isExpanded = _isCaptionExpanded;
+
+    return GestureDetector(
+      onTap: isLong && !isExpanded
+          ? () => setState(() => _isCaptionExpanded = true)
+          : null,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 2),
+        child: RichText(
+          maxLines: isExpanded ? null : 2,
+          overflow: isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+          text: TextSpan(
+            style: DefaultTextStyle.of(context).style.copyWith(fontSize: 13),
+            children: [
+              TextSpan(
+                text: '${_post.user?.username ?? ''} ',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              ..._buildCaptionSpans(caption),
+              if (isLong && !isExpanded)
+                TextSpan(
+                  text: ' more',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -632,6 +686,7 @@ class _PostCardState extends State<PostCard> {
                     maxScale: 5,
                     child: CachedNetworkImage(
                       imageUrl: imageUrl,
+                      cacheManager: AppImageCacheManager.instance,
                       fit: BoxFit.contain,
                       placeholder: (context, url) => const Center(
                         child: SizedBox(
@@ -751,21 +806,33 @@ class _PostCardState extends State<PostCard> {
     final words = caption.split(' ');
 
     return words.map((word) {
-      if (word.startsWith('#')) {
+      if (word.startsWith('#') && word.length > 1) {
+        final tag = word.substring(1).replaceAll(RegExp(r'[^\w]'), '');
         return TextSpan(
           text: '$word ',
           style: const TextStyle(
             color: Colors.lightBlueAccent,
             fontWeight: FontWeight.w600,
           ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () => Get.toNamed(
+                  Routes.hashtagPosts,
+                  arguments: tag,
+                ),
         );
-      } else if (word.startsWith('@')) {
+      } else if (word.startsWith('@') && word.length > 1) {
+        final username = word.substring(1).replaceAll(RegExp(r'[^\w.]'), '');
         return TextSpan(
           text: '$word ',
           style: const TextStyle(
             color: Colors.purpleAccent,
             fontWeight: FontWeight.w600,
           ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () => Get.toNamed(
+                  Routes.userProfile,
+                  arguments: username,
+                ),
         );
       } else {
         return TextSpan(text: '$word ');

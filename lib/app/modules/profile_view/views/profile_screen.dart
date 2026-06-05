@@ -180,6 +180,7 @@ class ProfileScreen extends GetView<ProfileController> {
                           Tab(text: 'All'),
                           Tab(text: 'Images'),
                           Tab(text: 'Videos'),
+                          Tab(text: "Saved"),
                         ],
                       ),
                     ),
@@ -191,6 +192,7 @@ class ProfileScreen extends GetView<ProfileController> {
                     _buildPostGrid(controller.allPosts),
                     _buildPostGrid(controller.imagePosts),
                     _buildPostGrid(controller.videoPosts),
+                    _buildSavedGrid(context),
                   ],
                 ),
               ),
@@ -263,6 +265,65 @@ class ProfileScreen extends GetView<ProfileController> {
                 ),
               );
             },
+          );
+        },
+      );
+    });
+  }
+
+  Widget _buildSavedGrid(BuildContext context) {
+    return Obx(() {
+      if (controller.isSavedLoading.value) {
+        return ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: const [
+            SizedBox(height: 12),
+            GridSkeleton(),
+          ],
+        );
+      }
+
+      final posts = controller.savedPosts;
+
+      if (posts.isEmpty) {
+        return ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(height: 140),
+            Center(
+              child: Column(
+                children: [
+                  Icon(Icons.bookmark_border, size: 40,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
+                  SizedBox(height: 8),
+                  Text(
+                    'No saved posts yet',
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      }
+
+      return GridView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 2,
+          mainAxisSpacing: 2,
+        ),
+        itemCount: posts.length,
+        itemBuilder: (context, index) {
+          final post = posts[index];
+          return PostGridItem(
+            post: post,
+            onTap: () => Get.to(
+              () => PostDetailScreen(posts: posts, initialIndex: index),
+            ),
           );
         },
       );

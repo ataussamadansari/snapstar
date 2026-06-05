@@ -1,4 +1,4 @@
-﻿import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LikeProvider {
   LikeProvider(this._client);
@@ -27,10 +27,7 @@ class LikeProvider {
     required String postId,
     required String userId,
   }) async {
-    await _client.from('likes').insert({
-      'post_id': postId,
-      'user_id': userId,
-    });
+    await _client.from('likes').insert({'post_id': postId, 'user_id': userId});
   }
 
   Future<void> removeLike({
@@ -44,8 +41,12 @@ class LikeProvider {
   }
 
   Future<int> fetchLikeCount(String postId) async {
-    final res = await _client.from('likes').select('id').eq('post_id', postId);
-    return (res as List).length;
+    final res = await _client
+        .from('posts')
+        .select('like_count')
+        .eq('id', postId)
+        .maybeSingle();
+    return (res?['like_count'] as num?)?.toInt() ?? 0;
   }
 
   Future<List<Map<String, dynamic>>> fetchLikes(String postId) async {
@@ -56,27 +57,5 @@ class LikeProvider {
         .order('created_at', ascending: false);
 
     return List<Map<String, dynamic>>.from(res);
-  }
-
-  Future<void> callIncrementLikeRpc(String postId) async {
-    await _client.rpc('increment_post_like_count', params: {
-      'p_post_id': postId,
-    });
-  }
-
-  Future<void> callDecrementLikeRpc(String postId) async {
-    await _client.rpc('decrement_post_like_count', params: {
-      'p_post_id': postId,
-    });
-  }
-
-  Future<void> updatePostLikeCount({
-    required String postId,
-    required int likeCount,
-  }) async {
-    await _client.from('posts').update({
-      'like_count': likeCount,
-      'updated_at': DateTime.now().toIso8601String(),
-    }).eq('id', postId);
   }
 }

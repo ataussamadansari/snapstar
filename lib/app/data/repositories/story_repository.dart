@@ -16,9 +16,17 @@ class StoryRepository {
     final fileName =
         "$userId/${DateTime.now().millisecondsSinceEpoch}.$fileExt";
 
+    // cacheControl: '86400' = 24 hours — stories expire hoti hain, zyada nahi chahiye
     await _client.storage
-        .from('stories') // bucket name
-        .upload(fileName, file);
+        .from('stories')
+        .upload(
+          fileName,
+          file,
+          fileOptions: const FileOptions(
+            cacheControl: '86400',
+            upsert: false,
+          ),
+        );
 
     final publicUrl = _client.storage.from('stories').getPublicUrl(fileName);
 

@@ -20,7 +20,7 @@ class StorageService extends GetxService {
           .upload(
             path,
             imageFile,
-            fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+            fileOptions: const FileOptions(cacheControl: '604800', upsert: false), // 7 days
           );
 
       final url = _supabase.storage.from('chat-media').getPublicUrl(path);
@@ -45,7 +45,7 @@ class StorageService extends GetxService {
           .upload(
             path,
             videoFile,
-            fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+            fileOptions: const FileOptions(cacheControl: '604800', upsert: false), // 7 days
           );
 
       final url = _supabase.storage.from('chat-media').getPublicUrl(path);

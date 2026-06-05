@@ -72,11 +72,11 @@ class _SuggestedHashtagListTile extends StatelessWidget {
 
     return ListTile(
       leading: CircleAvatar(
-        backgroundColor: Colors.grey.shade200,
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         child: Text(
           '#',
           style: TextStyle(
-            color: Colors.grey.shade700,
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -86,7 +86,6 @@ class _SuggestedHashtagListTile extends StatelessWidget {
         style: const TextStyle(fontWeight: FontWeight.w600),
       ),
       subtitle: Text('$postCount posts • $usageCount uses'),
-      // trailing: const Icon(Icons.chevron_right_rounded),
       onTap: () {
         controller.queryCtrl.text = '#$value';
         controller.onQueryChanged('#$value');

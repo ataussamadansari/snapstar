@@ -8,8 +8,10 @@ import '../../../data/models/post_model.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/post_repository.dart';
+import '../../../data/repositories/save_repository.dart';
 import '../../../data/repositories/subscriber_repository.dart';
 import '../../../data/repositories/user_repository.dart';
+import '../../../data/services/local_cache_service.dart';
 import '../../../routes/app_routes.dart';
 
 class ProfileController extends GetxController with GetSingleTickerProviderStateMixin {
@@ -18,20 +20,29 @@ class ProfileController extends GetxController with GetSingleTickerProviderState
     this._postRepo,
     this._authRepo,
     this._subscriberRepo,
+    this._cacheService,
+    this._saveRepo,
   );
 
   final UserRepository _userRepo;
   final PostRepository _postRepo;
   final AuthRepository _authRepo;
   final SubscriberRepository _subscriberRepo;
+  final LocalCacheService _cacheService;
+  final SaveRepository _saveRepo;
+
+  static const Duration _profileCacheTtl = Duration(minutes: 30);
+  static const Duration _postsCacheTtl = Duration(minutes: 5);
 
   late TabController tabController;
 
   final RxList<PostModel> allPosts = <PostModel>[].obs;
   final RxList<PostModel> imagePosts = <PostModel>[].obs;
   final RxList<PostModel> videoPosts = <PostModel>[].obs;
+  final RxList<PostModel> savedPosts = <PostModel>[].obs;
 
   final RxBool isPostLoading = false.obs;
+  final RxBool isSavedLoading = false.obs;
   final RxInt postsCount = 0.obs;
 
   final Rxn<UserModel> userProfile = Rxn<UserModel>();
@@ -47,16 +58,79 @@ class ProfileController extends GetxController with GetSingleTickerProviderState
   void onInit() {
     super.onInit();
 
-    tabController = TabController(length: 3, vsync: this);
+    tabController = TabController(length: 4, vsync: this);
 
-    fetchMyProfile();
-    fetchAllMyPosts();
-    _refreshPostCount();
-    _refreshFollowCounts();
+    // Pehle cache se instantly dikhao, phir background mein fresh data lo
+    _hydrateFromCache().then((_) {
+      fetchMyProfile();
+      fetchAllMyPosts();
+      fetchSavedPosts();
+      _refreshFollowCounts();
+    });
+
     _subscribeToUserPostChanges();
     _subscribeToSubscriberChanges();
     _subscribeToUserProfileChanges();
   }
+
+  // ─── Cache: Hydrate ────────────────────────────────────────────────────────
+
+  Future<void> _hydrateFromCache() async {
+    final userId = _authRepo.currentUserId;
+    if (userId == null) return;
+
+    // Profile cache
+    final profilePayload = await _cacheService.getJson('profile_user_$userId');
+    if (profilePayload != null) {
+      try {
+        final profile = UserModel.fromJson(profilePayload);
+        userProfile.value = profile;
+        subscriberCount.value = profile.subscriberCount;
+        subscribingCount.value = profile.subscribingCount;
+        isLoading.value = false;
+      } catch (_) {}
+    }
+
+    // Posts cache
+    final postsPayload = await _cacheService.getJson('profile_posts_$userId');
+    final itemsRaw = postsPayload?['items'];
+    if (itemsRaw is List && itemsRaw.isNotEmpty) {
+      try {
+        final restored = itemsRaw
+            .whereType<Map>()
+            .map((row) => PostModel.fromJson(Map<String, dynamic>.from(row)))
+            .toList();
+        if (restored.isNotEmpty && allPosts.isEmpty) {
+          _applyPostBuckets(restored);
+          isPostLoading.value = false;
+        }
+      } catch (_) {}
+    }
+  }
+
+  // ─── Cache: Persist ────────────────────────────────────────────────────────
+
+  Future<void> _persistProfileCache(UserModel profile) async {
+    await _cacheService.putJson(
+      'profile_user_${profile.id}',
+      profile.toJson(),
+      ttl: _profileCacheTtl,
+    );
+  }
+
+  Future<void> _persistPostsCache(String userId) async {
+    if (allPosts.isEmpty) return;
+    final payload = <String, dynamic>{
+      'items': allPosts.map((post) => _postToJson(post)).toList(),
+    };
+    await _cacheService.putJson(
+      'profile_posts_$userId',
+      payload,
+      ttl: _postsCacheTtl,
+    );
+  }
+
+  // ─── Fetch ─────────────────────────────────────────────────────────────────
 
   Future<void> fetchAllMyPosts() async {
     try {
@@ -68,11 +142,25 @@ class ProfileController extends GetxController with GetSingleTickerProviderState
       final posts = await _postRepo.fetchUserPosts(userId);
       _applyPostBuckets(posts);
       _refreshPostCount();
+      await _persistPostsCache(userId);
     } catch (error, stackTrace) {
       debugPrint('ProfileController.fetchAllMyPosts error: $error');
       debugPrint('ProfileController.fetchAllMyPosts stack: $stackTrace');
     } finally {
       isPostLoading.value = false;
+    }
+  }
+
+  Future<void> fetchSavedPosts() async {
+    try {
+      isSavedLoading.value = true;
+      final posts = await _saveRepo.fetchSavedPosts(limit: 60);
+      savedPosts.assignAll(posts);
+    } catch (error, stackTrace) {
+      debugPrint('ProfileController.fetchSavedPosts error: $error');
+      debugPrint('ProfileController.fetchSavedPosts stack: $stackTrace');
+    } finally {
+      isSavedLoading.value = false;
     }
   }
 
@@ -86,6 +174,7 @@ class ProfileController extends GetxController with GetSingleTickerProviderState
         if (profile != null) {
           subscriberCount.value = profile.subscriberCount;
           subscribingCount.value = profile.subscribingCount;
+          await _persistProfileCache(profile);
         }
       }
     } catch (error, stackTrace) {
@@ -140,7 +229,7 @@ class ProfileController extends GetxController with GetSingleTickerProviderState
     await Future.wait<void>([
       fetchMyProfile(),
       fetchAllMyPosts(),
-      _refreshPostCount(),
+      fetchSavedPosts(),
       _refreshFollowCounts(),
     ]);
   }
@@ -174,6 +263,7 @@ class ProfileController extends GetxController with GetSingleTickerProviderState
         );
         _applyPostBuckets(next);
         _refreshPostCount();
+        _persistPostsCache(userId); // cache bhi update karo
       },
     );
   }
@@ -202,6 +292,40 @@ class ProfileController extends GetxController with GetSingleTickerProviderState
       postsCount.value = posts.length;
     }
   }
+
+  // ─── Cache Helper ──────────────────────────────────────────────────────────
+
+  Map<String, dynamic> _postToJson(PostModel post) => {
+        'id': post.id,
+        'user_id': post.userId,
+        'media_type': post.mediaType.name,
+        'caption': post.caption,
+        'media_urls': post.mediaUrls,
+        'thumbnail_urls': post.thumbnailUrls,
+        'like_count': post.likeCount,
+        'comment_count': post.commentCount,
+        'share_count': post.shareCount,
+        'is_deleted': post.isDeleted,
+        'location': post.location,
+        'created_at': post.createdAt.toUtc().toIso8601String(),
+        'updated_at': post.updatedAt.toUtc().toIso8601String(),
+        if (post.user != null)
+          'users': {
+            'id': post.user!.id,
+            'name': post.user!.name,
+            'username': post.user!.username,
+            'email': post.user!.email,
+            'phone': post.user!.phone,
+            'avatar_url': post.user!.avatarUrl,
+            'bio': post.user!.bio,
+            'role': post.user!.role,
+            'posts_count': post.user!.postsCount,
+            'subscriber_count': post.user!.subscriberCount,
+            'subscribing_count': post.user!.subscribingCount,
+            'created_at': post.user!.createdAt.toUtc().toIso8601String(),
+            'updated_at': post.user!.updatedAt.toUtc().toIso8601String(),
+          },
+      };
 
   void _subscribeToUserProfileChanges() {
     if (_userProfileChannel != null) {

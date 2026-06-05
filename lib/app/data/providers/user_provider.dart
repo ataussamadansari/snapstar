@@ -98,6 +98,15 @@ class UserProvider {
     return await _client.from('users').select().eq('id', uid).maybeSingle();
   }
 
+  /// GET USER BY USERNAME
+  Future<Map<String, dynamic>?> getUserByUsername(String username) async {
+    return await _client
+        .from('users')
+        .select()
+        .eq('username', username.toLowerCase())
+        .maybeSingle();
+  }
+
   /// UPDATE USER PROFILE
   Future<void> updateUser(String uid, Map<String, dynamic> data) async {
     await _client.from('users').update(data).eq('id', uid);

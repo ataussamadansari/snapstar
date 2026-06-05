@@ -26,10 +26,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   late ScrollController _scrollController;
   late int _currentIndex;
   late List<PostModel> _displayPosts;
-
-  /// keys used to scroll/measure individual list items when opening the
-  /// detail screen from a feed.
   late List<GlobalKey> _itemKeys;
+
+  // Ek session mein ek post ka view sirf ek baar count ho
 
   @override
   void initState() {
@@ -38,7 +37,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     _currentIndex = 0;
     _scrollController = ScrollController();
 
-    // prepare keys for each post so we can scroll/measure later
     _itemKeys = List<GlobalKey>.generate(
       _displayPosts.length,
       (_) => GlobalKey(),
@@ -46,9 +44,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToInitial();
+      // Pehla post jo open hote hi dikh raha hai uska view count karo
     });
 
-    // install scroll listener after first frame so context is available
     _scrollController.addListener(_updateCurrentIndexByPosition);
   }
 
@@ -63,10 +61,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       return posts;
     }
 
-    return <PostModel>[
-      ...posts.skip(safeIndex),
-      ...posts.take(safeIndex),
-    ];
+    return <PostModel>[...posts.skip(safeIndex), ...posts.take(safeIndex)];
   }
 
   void _scrollToInitial() {
@@ -75,23 +70,28 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     if (ctx != null) {
       Scrollable.ensureVisible(ctx, duration: Duration.zero, alignment: 0.0);
     } else {
-      // item not built yet, try again next frame
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToInitial());
     }
   }
 
   void _updateCurrentIndexByPosition() {
+    // Widget unmount ho gaya ho to crash avoid karo
+    if (!mounted) return;
+
     final screenMiddle = MediaQuery.of(context).size.height / 2;
     for (var i = 0; i < _itemKeys.length; i++) {
       final ctx = _itemKeys[i].currentContext;
       if (ctx == null) continue;
-      final box = ctx.findRenderObject() as RenderBox;
-      final pos = box.localToGlobal(Offset.zero);
-      if (pos.dy <= screenMiddle && pos.dy + box.size.height >= screenMiddle) {
+
+      final renderObject = ctx.findRenderObject();
+      // RenderBox attached nahi hai to skip karo — crash ka main reason
+      if (renderObject is! RenderBox || !renderObject.attached) continue;
+
+      final pos = renderObject.localToGlobal(Offset.zero);
+      if (pos.dy <= screenMiddle &&
+          pos.dy + renderObject.size.height >= screenMiddle) {
         if (_currentIndex != i) {
-          setState(() {
-            _currentIndex = i;
-          });
+          setState(() => _currentIndex = i);
         }
         break;
       }

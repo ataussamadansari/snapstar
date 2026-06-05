@@ -27,8 +27,9 @@ class PostRepository {
 
   final PostService _service;
 
-  Future<void> createPost(PostModel post) async {
-    await _service.createPost(post.toCreateJson());
+  Future<String?> createPost(PostModel post) async {
+    final raw = await _service.createPost(post.toCreateJson());
+    return raw['id']?.toString();
   }
 
   Future<void> editPost({
@@ -177,8 +178,28 @@ class PostRepository {
     return PostModel.fromJson(raw);
   }
 
-  Future<void> incrementShareCount(String postId) {
+  Future<bool> incrementShareCount(String postId) {
     return _service.incrementShareCount(postId);
+  }
+
+  Future<bool> recordWatchEvent({
+    required String postId,
+    required String sessionId,
+    required double watchedSeconds,
+    required double totalSeconds,
+  }) {
+    return _service.recordWatchEvent(
+      postId: postId,
+      sessionId: sessionId,
+      watchedSeconds: watchedSeconds,
+      totalSeconds: totalSeconds,
+    );
+  }
+
+  Future<PostModel?> fetchLatestPostByUser(String userId) async {
+    final raw = await _service.fetchUserPosts(userId, limit: 1, offset: 0);
+    if (raw.isEmpty) return null;
+    return PostModel.fromJson(raw.first);
   }
 
   Future<String> uploadMedia({

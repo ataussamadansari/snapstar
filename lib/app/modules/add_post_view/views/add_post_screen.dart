@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:snapstar_app/app/global_widgets/loading_skeleton.dart';
+import 'package:snapstar_app/app/global_widgets/mention_autocomplete.dart';
 import '../controllers/add_post_controller.dart';
 
 class AddPostScreen extends GetView<AddPostController> {
@@ -9,6 +10,7 @@ class AddPostScreen extends GetView<AddPostController> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final captionFocusNode = FocusNode();
 
     return Scaffold(
       appBar: AppBar(
@@ -52,15 +54,11 @@ class AddPostScreen extends GetView<AddPostController> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             /// Caption
-            TextField(
+            MentionAutocomplete(
               controller: controller.captionCtrl,
+              focusNode: captionFocusNode,
+              hintText: 'Write a caption... use #hashtag or @mention',
               maxLines: 4,
-              style: theme.textTheme.bodyLarge,
-              decoration: InputDecoration(
-                hintText: "Write a caption...",
-                border: InputBorder.none,
-                hintStyle: TextStyle(color: theme.hintColor),
-              ),
             ),
 
             Divider(color: theme.dividerColor),

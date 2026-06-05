@@ -111,22 +111,24 @@ class ContentStyleSettingsScreen extends GetView<PostStoryStyleController> {
     required double max,
     required ValueChanged<double> onChanged,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.25)),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '$title (${value.toStringAsFixed(1)})',
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-          Slider(value: value, min: min, max: max, onChanged: onChanged),
-        ],
+    return Builder(
+      builder: (context) => Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Theme.of(context).dividerColor),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '$title (${value.toStringAsFixed(1)})',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            Slider(value: value, min: min, max: max, onChanged: onChanged),
+          ],
+        ),
       ),
     );
   }
@@ -136,45 +138,50 @@ class ContentStyleSettingsScreen extends GetView<PostStoryStyleController> {
     required Color selectedColor,
     required ValueChanged<Color> onColorSelected,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.25)),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _palette.map((color) {
-              final isSelected = selectedColor.toARGB32() == color.toARGB32();
-              final borderColor = isSelected
-                  ? Colors.blue
-                  : Colors.grey.withValues(alpha: 0.35);
+    return Builder(
+      builder: (context) => Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Theme.of(context).dividerColor),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _palette.map((color) {
+                final isSelected = selectedColor.toARGB32() == color.toARGB32();
+                final borderColor = isSelected
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).dividerColor;
 
-              return GestureDetector(
-                onTap: () => onColorSelected(color),
-                child: Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: color == Colors.transparent ? Colors.white : color,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: borderColor, width: 2),
+                return GestureDetector(
+                  onTap: () => onColorSelected(color),
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: color == Colors.transparent
+                          ? Theme.of(context).colorScheme.surface
+                          : color,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: borderColor, width: 2),
+                    ),
+                    child: color == Colors.transparent
+                        ? Icon(Icons.block, size: 14,
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5))
+                        : null,
                   ),
-                  child: color == Colors.transparent
-                      ? const Icon(Icons.block, size: 14, color: Colors.black54)
-                      : null,
-                ),
-              );
-            }).toList(),
-          ),
-        ],
+                );
+              }).toList(),
+            ),
+          ],
+        ),
       ),
     );
   }

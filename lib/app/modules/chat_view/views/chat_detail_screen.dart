@@ -40,12 +40,12 @@ class ChatDetailScreen extends GetView<ChatDetailController> {
                       Icon(
                         Icons.error_outline,
                         size: 48,
-                        color: Colors.grey[400],
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                       ),
                       const SizedBox(height: 16),
                       Text(
                         controller.errorMessage.value!,
-                        style: TextStyle(color: Colors.grey[600]),
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55)),
                       ),
                     ],
                   ),
@@ -60,21 +60,21 @@ class ChatDetailScreen extends GetView<ChatDetailController> {
                       Icon(
                         Icons.chat_bubble_outline,
                         size: 64,
-                        color: Colors.grey[300],
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.25),
                       ),
                       const SizedBox(height: 16),
                       Text(
                         'No messages yet',
                         style: TextStyle(
                           fontSize: 18,
-                          color: Colors.grey[600],
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Start the conversation',
-                        style: TextStyle(color: Colors.grey[500]),
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45)),
                       ),
                     ],
                   ),
@@ -138,7 +138,7 @@ class ChatDetailScreen extends GetView<ChatDetailController> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(Get.context!).colorScheme.surface,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -164,7 +164,7 @@ class ChatDetailScreen extends GetView<ChatDetailController> {
                       borderSide: BorderSide.none,
                     ),
                     filled: true,
-                    fillColor: Colors.grey[100],
+                    fillColor: Theme.of(Get.context!).colorScheme.surfaceContainerHighest,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 8,
@@ -192,7 +192,7 @@ class ChatDetailScreen extends GetView<ChatDetailController> {
                 onPressed: controller.isSending.value
                     ? null
                     : controller.sendTextMessage,
-                color: Colors.blue,
+                color: Theme.of(Get.context!).colorScheme.primary,
               ),
             ),
           ],
@@ -238,19 +238,19 @@ class _DateDivider extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Row(
         children: [
-          Expanded(child: Divider(color: Colors.grey[300])),
+          Expanded(child: Divider(color: Theme.of(context).dividerColor)),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
               _formatDate(date),
               style: TextStyle(
-                color: Colors.grey[600],
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),
             ),
           ),
-          Expanded(child: Divider(color: Colors.grey[300])),
+          Expanded(child: Divider(color: Theme.of(context).dividerColor)),
         ],
       ),
     );
@@ -293,7 +293,9 @@ class _MessageBubble extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: isMyMessage ? Colors.blue : Colors.grey[300],
+            color: isMyMessage
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(16),
           ),
           constraints: BoxConstraints(
@@ -302,12 +304,14 @@ class _MessageBubble extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildMessageContent(),
+              _buildMessageContent(context),
               const SizedBox(height: 4),
               Text(
                 _formatTime(message.createdAt),
                 style: TextStyle(
-                  color: isMyMessage ? Colors.white70 : Colors.grey[600],
+                  color: isMyMessage
+                      ? Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.7)
+                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
                   fontSize: 10,
                 ),
               ),
@@ -318,31 +322,33 @@ class _MessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildMessageContent() {
+  Widget _buildMessageContent(BuildContext context) {
     switch (message.messageType) {
       case MessageType.image:
-        return _buildImageMessage();
+        return _buildImageMessage(context);
       case MessageType.video:
-        return _buildVideoMessage();
+        return _buildVideoMessage(context);
       case MessageType.post:
       case MessageType.reel:
-        return _buildSharedPost();
+        return _buildSharedPost(context);
       default:
-        return _buildTextMessage();
+        return _buildTextMessage(context);
     }
   }
 
-  Widget _buildTextMessage() {
+  Widget _buildTextMessage(BuildContext context) {
     return Text(
       message.messageText ?? '',
       style: TextStyle(
-        color: isMyMessage ? Colors.white : Colors.black87,
+        color: isMyMessage
+            ? Theme.of(context).colorScheme.onPrimary
+            : Theme.of(context).colorScheme.onSurface,
         fontSize: 15,
       ),
     );
   }
 
-  Widget _buildImageMessage() {
+  Widget _buildImageMessage(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -359,7 +365,9 @@ class _MessageBubble extends StatelessWidget {
           Text(
             message.messageText!,
             style: TextStyle(
-              color: isMyMessage ? Colors.white : Colors.black87,
+              color: isMyMessage
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ],
@@ -367,7 +375,7 @@ class _MessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildVideoMessage() {
+  Widget _buildVideoMessage(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -403,7 +411,9 @@ class _MessageBubble extends StatelessWidget {
           Text(
             message.messageText!,
             style: TextStyle(
-              color: isMyMessage ? Colors.white : Colors.black87,
+              color: isMyMessage
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ],
@@ -411,7 +421,7 @@ class _MessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildSharedPost() {
+  Widget _buildSharedPost(BuildContext context) {
     final previewUrl = message.sharedPostThumbnailUrl ?? message.sharedPostMediaUrl;
     final isReel = message.messageType == MessageType.reel;
 
@@ -419,7 +429,9 @@ class _MessageBubble extends StatelessWidget {
       onTap: () => _openSharedPost(),
       child: Container(
         decoration: BoxDecoration(
-          color: isMyMessage ? Colors.blue[700] : Colors.grey[200],
+          color: isMyMessage
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.8)
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(8),
         ),
         padding: const EdgeInsets.all(8),
@@ -444,12 +456,16 @@ class _MessageBubble extends StatelessWidget {
                     width: double.infinity,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: isMyMessage ? Colors.blue[600] : Colors.grey[300],
+                      color: isMyMessage
+                          ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.6)
+                          : Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
                       isReel ? Icons.play_circle_outline : Icons.image_outlined,
-                      color: isMyMessage ? Colors.white70 : Colors.black54,
+                      color: isMyMessage
+                          ? Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.7)
+                          : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
                       size: 36,
                     ),
                   ),
@@ -478,7 +494,9 @@ class _MessageBubble extends StatelessWidget {
               Text(
                 message.sharedPostCaption!,
                 style: TextStyle(
-                  color: isMyMessage ? Colors.white : Colors.black87,
+                  color: isMyMessage
+                      ? Theme.of(context).colorScheme.onPrimary
+                      : Theme.of(context).colorScheme.onSurface,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -490,7 +508,9 @@ class _MessageBubble extends StatelessWidget {
               Text(
                 message.messageText!,
                 style: TextStyle(
-                  color: isMyMessage ? Colors.white : Colors.black87,
+                  color: isMyMessage
+                      ? Theme.of(context).colorScheme.onPrimary
+                      : Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ],

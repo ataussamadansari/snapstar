@@ -16,44 +16,31 @@ class UserSuggestionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode =
-        Theme.of(context).brightness == Brightness.dark;
-
     return Container(
       width: 150,
-      margin:
-      const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color:
-        isDarkMode ? Colors.grey[900] : Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isDarkMode
-              ? Colors.white10
-              : Colors.grey.shade200,
+          color: Theme.of(context).dividerColor,
         ),
       ),
       child: Column(
-        mainAxisAlignment:
-        MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          /// PROFILE IMAGE
           GestureDetector(
             onTap: onProfileTap,
             child: AppAvatar(
               radius: 35,
               avatarUrl: user.avatarUrl,
-              backgroundColor: isDarkMode
-                  ? Colors.grey[800]
-                  : Colors.grey.shade300,
-              iconColor: Colors.white,
+              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              iconColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
               iconSize: 30,
             ),
           ),
           const SizedBox(height: 10),
-
-          /// USER NAME
           Text(
             user.name,
             maxLines: 1,
@@ -63,20 +50,16 @@ class UserSuggestionCard extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
-
           Text(
             "@${user.username}",
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 11,
-              color: Colors.grey.shade600,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
             ),
           ),
-
           const Spacer(),
-
-          /// ✅ CLEAN BUTTON
           SubscriberButton(
             userId: user.id,
           ),

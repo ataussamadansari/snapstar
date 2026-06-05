@@ -9,12 +9,14 @@ class CustomCacheManager extends CacheManager with ImageCacheManager {
 
   CustomCacheManager()
       : super(
-    Config(
-      key,
-      stalePeriod: const Duration(days: 7), // 7 din tak cache rahega
-      maxNrOfCacheObjects: 100, // Max 100 videos save hongi
-      repo: JsonCacheInfoRepository(databaseName: key),
-      fileService: HttpFileService(),
-    ),
-  );
+          Config(
+            key,
+            // 7 din tak cache — video baar baar download nahi hogi
+            stalePeriod: const Duration(days: 7),
+            // Max 50 videos — zyada videos = zyada disk space
+            maxNrOfCacheObjects: 50,
+            repo: JsonCacheInfoRepository(databaseName: key),
+            fileService: HttpFileService(),
+          ),
+        );
 }

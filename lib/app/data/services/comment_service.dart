@@ -28,7 +28,8 @@ class CommentService {
 
   final Map<String, Set<void Function(CommentRealtimeChange)>> _postListeners =
       <String, Set<void Function(CommentRealtimeChange)>>{};
-  final Map<String, RealtimeChannel> _postChannels = <String, RealtimeChannel>{};
+  final Map<String, RealtimeChannel> _postChannels =
+      <String, RealtimeChannel>{};
   final Map<String, String> _commentPostMap = <String, String>{};
 
   Future<void> createComment(Map<String, dynamic> data) async {
@@ -37,7 +38,6 @@ class CommentService {
       final postId = data['post_id']?.toString();
       final actorUserId = data['user_id']?.toString();
       if (postId != null && postId.isNotEmpty) {
-        await _updateCommentCount(postId: postId, isCreateAction: true);
         if (actorUserId != null && actorUserId.isNotEmpty) {
           await _createCommentNotification(
             postId: postId,
@@ -92,8 +92,6 @@ class CommentService {
       } on PostgrestException {
         await _provider.hardDeleteComment(id);
       }
-
-      await _updateCommentCount(postId: postId, isCreateAction: false);
     } catch (error, stackTrace) {
       debugPrint('CommentService.deleteComment error: $error');
       debugPrint('CommentService.deleteComment stack: $stackTrace');
@@ -126,36 +124,6 @@ class CommentService {
 
       _disposeChannelIfIdle(postId);
     };
-  }
-
-  Future<void> _updateCommentCount({
-    required String postId,
-    required bool isCreateAction,
-  }) async {
-    try {
-      if (isCreateAction) {
-        await _provider.callIncrementCommentRpc(postId);
-      } else {
-        await _provider.callDecrementCommentRpc(postId);
-      }
-    } catch (error, stackTrace) {
-      debugPrint('CommentService._updateCommentCount rpc error: $error');
-      debugPrint('CommentService._updateCommentCount rpc stack: $stackTrace');
-      await _syncCommentCountFallback(postId);
-    }
-  }
-
-  Future<void> _syncCommentCountFallback(String postId) async {
-    try {
-      final count = await _provider.fetchCommentCount(postId);
-      await _provider.updatePostCommentCount(
-        postId: postId,
-        commentCount: count,
-      );
-    } catch (error, stackTrace) {
-      debugPrint('CommentService._syncCommentCountFallback error: $error');
-      debugPrint('CommentService._syncCommentCountFallback stack: $stackTrace');
-    }
   }
 
   void _ensureRealtimeChannelForPost(String postId) {
@@ -326,7 +294,9 @@ class CommentService {
       );
     } catch (error, stackTrace) {
       debugPrint('CommentService._createCommentNotification error: $error');
-      debugPrint('CommentService._createCommentNotification stack: $stackTrace');
+      debugPrint(
+        'CommentService._createCommentNotification stack: $stackTrace',
+      );
     }
   }
 }

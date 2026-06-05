@@ -5,10 +5,7 @@ import 'notification_event_helper.dart';
 import '../providers/subscriber_provider.dart';
 
 class SubscriberService {
-  SubscriberService(
-    this._provider,
-    this._client,
-  );
+  SubscriberService(this._provider, this._client);
 
   final SubscriberProvider _provider;
   final SupabaseClient _client;
@@ -79,7 +76,6 @@ class SubscriberService {
           subscribedId: subscribedId,
         );
 
-        await _syncCountsFallback(subscriberId, subscribedId);
         await _createFollowNotification(
           actorUserId: subscriberId,
           receiverUserId: subscribedId,
@@ -94,7 +90,6 @@ class SubscriberService {
         'subscribed_id': subscribedId,
       });
 
-      await _syncCountsFallback(subscriberId, subscribedId);
       await _createFollowNotification(
         actorUserId: subscriberId,
         receiverUserId: subscribedId,
@@ -173,7 +168,9 @@ class SubscriberService {
   }) async {
     try {
       final subscribed = await _provider.getSubscribing(myId);
-      final subscribedIds = subscribed.map((entry) => entry['subscribed_id']).toSet();
+      final subscribedIds = subscribed
+          .map((entry) => entry['subscribed_id'])
+          .toSet();
 
       final allUsers = await _provider.getUsersExcluding(
         userId: myId,
@@ -181,7 +178,9 @@ class SubscriberService {
         offset: offset,
       );
 
-      return allUsers.where((user) => !subscribedIds.contains(user['id'])).toList();
+      return allUsers
+          .where((user) => !subscribedIds.contains(user['id']))
+          .toList();
     } catch (error, stackTrace) {
       debugPrint('SubscriberService.getSuggestedUsers error: $error');
       debugPrint('SubscriberService.getSuggestedUsers stack: $stackTrace');
@@ -211,38 +210,6 @@ class SubscriberService {
 
       _disposeRealtimeIfIdle();
     };
-  }
-
-  Future<void> _syncCountsFallback(
-    String subscriberId,
-    String subscribedId,
-  ) async {
-    try {
-      final subscribedFollowerCount =
-          await _provider.fetchSubscriberCount(subscribedId);
-      final subscribedFollowingCount =
-          await _provider.fetchSubscribingCount(subscribedId);
-
-      await _provider.updateUserCounts(
-        userId: subscribedId,
-        subscriberCount: subscribedFollowerCount,
-        subscribingCount: subscribedFollowingCount,
-      );
-
-      final subscriberFollowerCount =
-          await _provider.fetchSubscriberCount(subscriberId);
-      final subscriberFollowingCount =
-          await _provider.fetchSubscribingCount(subscriberId);
-
-      await _provider.updateUserCounts(
-        userId: subscriberId,
-        subscriberCount: subscriberFollowerCount,
-        subscribingCount: subscriberFollowingCount,
-      );
-    } catch (error, stackTrace) {
-      debugPrint('SubscriberService._syncCountsFallback error: $error');
-      debugPrint('SubscriberService._syncCountsFallback stack: $stackTrace');
-    }
   }
 
   void _ensureRealtimeChannel() {

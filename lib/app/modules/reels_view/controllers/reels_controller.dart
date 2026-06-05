@@ -8,11 +8,7 @@ import '../../../data/repositories/post_repository.dart';
 import '../../../data/services/local_cache_service.dart';
 
 class ReelsController extends GetxController {
-  ReelsController(
-    this._postRepo,
-    this._authRepo,
-    this._cacheService,
-  );
+  ReelsController(this._postRepo, this._authRepo, this._cacheService);
 
   final PostRepository _postRepo;
   final AuthRepository _authRepo;
@@ -31,11 +27,16 @@ class ReelsController extends GetxController {
   String? _cursorId;
   double? _cursorScore;
   int _reelsSessionSalt = DateTime.now().millisecondsSinceEpoch;
+  final String _watchSessionId = DateTime.now().microsecondsSinceEpoch
+      .toString();
   final Set<String> _prefetchedUrls = <String>{};
   bool _isScopedMode = false;
   String? _scopedUserId;
 
   VoidCallback? _unsubscribePostChanges;
+
+  // Ek session mein ek hi baar count karo
+  final Set<String> _countedPostIds = {};
 
   bool get isScopedMode => _isScopedMode;
   String? get scopedUserId => _scopedUserId;
@@ -102,11 +103,9 @@ class ReelsController extends GetxController {
       final prepared = isFirstPage ? _diversifyReels(fetched) : fetched;
 
       if (isFirstPage) {
-        reels.assignAll(prepared);
+        reels.assignAll(_deduplicateReels(prepared));
       } else {
-        final existingIds = reels.map((post) => post.id).toSet();
-        final unique = prepared.where((post) => !existingIds.contains(post.id));
-        reels.addAll(unique);
+        reels.assignAll(_deduplicateReels([...reels, ...prepared]));
       }
 
       hasMore.value = page.hasMore;
@@ -183,8 +182,13 @@ class ReelsController extends GetxController {
     final ageHours = DateTime.now().difference(post.createdAt).inMinutes / 60.0;
     final recency = 1 / (1 + (ageHours / 14.0).clamp(0, 200));
     final engagement =
-        (post.likeCount * 1.2) + (post.commentCount * 1.8) + (post.shareCount * 2.2);
-    final randomBoost = _stableRandom01('${post.id}_${post.userId}', _reelsSessionSalt);
+        (post.likeCount * 1.2) +
+        (post.commentCount * 1.8) +
+        (post.shareCount * 2.2);
+    final randomBoost = _stableRandom01(
+      '${post.id}_${post.userId}',
+      _reelsSessionSalt,
+    );
     return (engagement * 0.05) + (recency * 1.0) + (randomBoost * 0.95);
   }
 
@@ -252,6 +256,37 @@ class ReelsController extends GetxController {
     _prefetchAround(index);
   }
 
+  Future<void> recordWatch({
+    required String postId,
+    required double watchedSeconds,
+    required double totalSeconds,
+  }) async {
+    if (totalSeconds <= 0 || watchedSeconds <= 0) {
+      return;
+    }
+    if (_countedPostIds.contains(postId)) {
+      return;
+    }
+
+    final accepted = await _postRepo.recordWatchEvent(
+      postId: postId,
+      sessionId: _watchSessionId,
+      watchedSeconds: watchedSeconds,
+      totalSeconds: totalSeconds,
+    );
+    if (accepted) {
+      _countedPostIds.add(postId);
+    }
+  }
+
+  List<PostModel> _deduplicateReels(Iterable<PostModel> source) {
+    final byId = <String, PostModel>{};
+    for (final post in source) {
+      byId[post.id] = post;
+    }
+    return byId.values.toList();
+  }
+
   Future<void> showGlobalAtPost(PostModel post) async {
     if (post.mediaType != MediaType.video) {
       return;
@@ -300,7 +335,9 @@ class ReelsController extends GetxController {
       return;
     }
 
-    final initialIndex = scopedReels.indexWhere((item) => item.id == initialPostId);
+    final initialIndex = scopedReels.indexWhere(
+      (item) => item.id == initialPostId,
+    );
     final targetIndex = initialIndex >= 0 ? initialIndex : 0;
     currentPage.value = targetIndex;
     _jumpToPage(targetIndex);
@@ -415,7 +452,7 @@ class ReelsController extends GetxController {
           .map((row) => PostModel.fromJson(Map<String, dynamic>.from(row)))
           .toList();
       if (restored.isNotEmpty && reels.isEmpty) {
-        reels.assignAll(restored);
+        reels.assignAll(_deduplicateReels(restored));
       }
     } catch (_) {}
   }
@@ -452,7 +489,7 @@ class ReelsController extends GetxController {
     await _cacheService.putJson(
       'reels_feed_$userId',
       payload,
-      ttl: const Duration(minutes: 3),
+      ttl: const Duration(minutes: 5),
     );
   }
 
@@ -483,6 +520,7 @@ class ReelsController extends GetxController {
   void onClose() {
     _unsubscribePostChanges?.call();
     _unsubscribePostChanges = null;
+    _countedPostIds.clear();
     pageController.dispose();
     super.onClose();
   }

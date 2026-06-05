@@ -53,7 +53,7 @@ class HomeScreen extends GetView<HomeController> {
                       'SnapStar',
                       style: TextStyle(
                         fontSize: 30,
-                        fontFamily: 'cursive',
+                        fontFamily: 'serif',
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -203,16 +203,18 @@ class HomeScreen extends GetView<HomeController> {
                               ? index - 1
                               : index;
 
-                          if (actualPostIndex < postCount) {
-                            final post = controller.posts[actualPostIndex];
-                            return PostCard(
-                              key: ValueKey(post.id),
-                              post: post,
-                              feedPosts: controller.posts,
-                            );
+                          // Bounds check — list update hone par index out of range crash
+                          if (actualPostIndex < 0 ||
+                              actualPostIndex >= postCount) {
+                            return const SizedBox.shrink();
                           }
 
-                          return const SizedBox.shrink();
+                          final post = controller.posts[actualPostIndex];
+                          return PostCard(
+                            key: ValueKey(post.id),
+                            post: post,
+                            feedPosts: controller.posts,
+                          );
                         },
                         childCount:
                             controller.posts.length +

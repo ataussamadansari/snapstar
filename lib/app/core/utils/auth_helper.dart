@@ -42,7 +42,7 @@ class AuthHelper {
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            const Icon(Icons.account_circle, size: 64, color: Colors.blue),
+            Icon(Icons.account_circle, size: 64, color: theme.colorScheme.primary),
             const SizedBox(height: 16),
             Text(
               "Account Required",

@@ -26,16 +26,16 @@ class SetupProfileScreen extends GetView<SetupProfileController> {
                         children: [
                           CircleAvatar(
                             radius: 50,
-                            backgroundColor: Colors.grey.shade300,
+                            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                             backgroundImage:
                                 controller.profileImage.value != null
                                 ? FileImage(controller.profileImage.value!)
                                 : null,
                             child: controller.profileImage.value == null
-                                ? const Icon(
+                                ? Icon(
                                     Icons.person,
                                     size: 50,
-                                    color: Colors.white,
+                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                                   )
                                 : null,
                           ),
@@ -43,15 +43,14 @@ class SetupProfileScreen extends GetView<SetupProfileController> {
                             bottom: 0,
                             right: 0,
                             child: GestureDetector(
-                              onTap: controller
-                                  .pickImage, // 🟢 Image pick function call
+                              onTap: controller.pickImage,
                               child: CircleAvatar(
                                 radius: 18,
-                                backgroundColor: Theme.of(context).primaryColor,
-                                child: const Icon(
+                                backgroundColor: Theme.of(context).colorScheme.primary,
+                                child: Icon(
                                   Icons.camera_alt_outlined,
                                   size: 14,
-                                  color: Colors.white,
+                                  color: Theme.of(context).colorScheme.onPrimary,
                                 ),
                               ),
                             ),
@@ -59,9 +58,12 @@ class SetupProfileScreen extends GetView<SetupProfileController> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         "Upload and adjust profile picture",
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                        ),
                       ),
                     ],
                   ),

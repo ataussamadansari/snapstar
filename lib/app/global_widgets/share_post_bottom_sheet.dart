@@ -109,7 +109,7 @@ class _SharePostBottomSheetState extends State<SharePostBottomSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: Theme.of(context).dividerColor,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -190,9 +190,9 @@ class _SharePostBottomSheetState extends State<SharePostBottomSheet> {
                             '@${conversation.otherUser?.username ?? 'user'}',
                           ),
                           trailing: isSelected
-                              ? const Icon(
+                              ? Icon(
                                   Icons.check_circle,
-                                  color: Colors.blue,
+                                  color: Theme.of(context).colorScheme.primary,
                                 )
                               : const Icon(Icons.circle_outlined),
                           onTap: () {

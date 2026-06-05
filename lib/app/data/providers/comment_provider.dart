@@ -40,30 +40,12 @@ class CommentProvider {
   }
 
   Future<int> fetchCommentCount(String postId) async {
-    try {
-      if (_supportsSoftDelete) {
-        final response = await _client
-            .from('comments')
-            .select('id')
-            .eq('post_id', postId)
-            .eq('is_deleted', false);
-
-        return (response as List).length;
-      }
-    } on PostgrestException catch (error) {
-      if (_isMissingSoftDeleteColumn(error)) {
-        _supportsSoftDelete = false;
-      } else {
-        rethrow;
-      }
-    }
-
     final response = await _client
-        .from('comments')
-        .select('id')
-        .eq('post_id', postId);
-
-    return (response as List).length;
+        .from('posts')
+        .select('comment_count')
+        .eq('id', postId)
+        .maybeSingle();
+    return (response?['comment_count'] as num?)?.toInt() ?? 0;
   }
 
   Future<Map<String, dynamic>?> fetchCommentById(String commentId) async {
@@ -129,33 +111,6 @@ class CommentProvider {
 
   Future<void> hardDeleteComment(String id) async {
     await _client.from('comments').delete().eq('id', id);
-  }
-
-  Future<void> callIncrementCommentRpc(String postId) async {
-    await _client.rpc(
-      'increment_post_comment_count',
-      params: {'p_post_id': postId},
-    );
-  }
-
-  Future<void> callDecrementCommentRpc(String postId) async {
-    await _client.rpc(
-      'decrement_post_comment_count',
-      params: {'p_post_id': postId},
-    );
-  }
-
-  Future<void> updatePostCommentCount({
-    required String postId,
-    required int commentCount,
-  }) async {
-    await _client
-        .from('posts')
-        .update({
-          'comment_count': commentCount,
-          'updated_at': DateTime.now().toIso8601String(),
-        })
-        .eq('id', postId);
   }
 
   bool _isMissingSoftDeleteColumn(PostgrestException error) {

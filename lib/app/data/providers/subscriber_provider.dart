@@ -1,4 +1,4 @@
-﻿import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SubscriberProvider {
   SubscriberProvider(this._client);
@@ -72,52 +72,20 @@ class SubscriberProvider {
   }
 
   Future<int> fetchSubscriberCount(String userId) async {
-    final response =
-        await _client.from('subscribes').select('id').eq('subscribed_id', userId);
-
-    return (response as List).length;
+    final response = await _client
+        .from('users')
+        .select('subscriber_count')
+        .eq('id', userId)
+        .maybeSingle();
+    return (response?['subscriber_count'] as num?)?.toInt() ?? 0;
   }
 
   Future<int> fetchSubscribingCount(String userId) async {
-    final response =
-        await _client.from('subscribes').select('id').eq('subscriber_id', userId);
-
-    return (response as List).length;
-  }
-
-  Future<void> callIncrementSubscriberRpc(String userId) async {
-    await _client.rpc('increment_user_subscriber_count', params: {
-      'p_user_id': userId,
-    });
-  }
-
-  Future<void> callDecrementSubscriberRpc(String userId) async {
-    await _client.rpc('decrement_user_subscriber_count', params: {
-      'p_user_id': userId,
-    });
-  }
-
-  Future<void> callIncrementSubscribingRpc(String userId) async {
-    await _client.rpc('increment_user_subscribing_count', params: {
-      'p_user_id': userId,
-    });
-  }
-
-  Future<void> callDecrementSubscribingRpc(String userId) async {
-    await _client.rpc('decrement_user_subscribing_count', params: {
-      'p_user_id': userId,
-    });
-  }
-
-  Future<void> updateUserCounts({
-    required String userId,
-    required int subscriberCount,
-    required int subscribingCount,
-  }) async {
-    await _client.from('users').update({
-      'subscriber_count': subscriberCount,
-      'subscribing_count': subscribingCount,
-      'updated_at': DateTime.now().toIso8601String(),
-    }).eq('id', userId);
+    final response = await _client
+        .from('users')
+        .select('subscribing_count')
+        .eq('id', userId)
+        .maybeSingle();
+    return (response?['subscribing_count'] as num?)?.toInt() ?? 0;
   }
 }

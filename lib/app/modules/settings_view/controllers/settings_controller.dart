@@ -38,11 +38,9 @@ class SettingsController extends GetxController {
   }
 
   Future<void> checkForUpdates() async {
-    AppHelpers.showSnackBar(
-      title: 'App Update',
-      message: 'You are using the latest version.',
-      isError: false,
-    );
+    // AppUpdateScreen khud ShorebirdService se directly baat karta hai
+    // Yahan sirf navigate karo
+    Get.toNamed(Routes.settingsAppUpdate);
   }
 
   Future<void> logout() async {

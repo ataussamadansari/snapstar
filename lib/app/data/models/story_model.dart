@@ -11,6 +11,8 @@ class StoryModel {
   final DateTime createdAt;
   final UserModel? user;
   bool isViewed;
+  int likeCount;
+  int viewCount;
 
   StoryModel({
     required this.id,
@@ -21,6 +23,8 @@ class StoryModel {
     required this.createdAt,
     this.user,
     this.isViewed = false,
+    this.likeCount = 0,
+    this.viewCount = 0,
   });
 
   factory StoryModel.fromJson(Map<String, dynamic> json) {
@@ -34,9 +38,9 @@ class StoryModel {
           .toList(),
       expiresAt: DateTime.parse(json['expires_at']),
       createdAt: DateTime.parse(json['created_at']),
-      user: json['users'] != null
-          ? UserModel.fromJson(json['users'])
-          : null,
+      user: json['users'] != null ? UserModel.fromJson(json['users']) : null,
+      likeCount: (json['like_count'] as num?)?.toInt() ?? 0,
+      viewCount: (json['view_count'] as num?)?.toInt() ?? 0,
     );
   }
 

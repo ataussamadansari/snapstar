@@ -66,8 +66,8 @@ class UserProfileScreen extends GetView<UserProfileController> {
                             AppAvatar(
                               radius: 40,
                               avatarUrl: user.avatarUrl,
-                              backgroundColor: Colors.grey[200],
-                              iconColor: Colors.grey[500],
+                              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                              iconColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                               iconSize: 50,
                             ),
                             Expanded(
@@ -207,7 +207,7 @@ class UserProfileScreen extends GetView<UserProfileController> {
                   delegate: _UserProfileTabDelegate(
                     TabBar(
                       controller: controller.tabController,
-                      unselectedLabelColor: Colors.grey,
+                      unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                       tabs: const [
                         Tab(text: 'All'),
                         Tab(text: 'Images'),

@@ -28,6 +28,16 @@ class UserService {
     }
   }
 
+  Future<Map<String, dynamic>?> getUserByUsername(String username) async {
+    try {
+      return await _provider.getUserByUsername(username);
+    } catch (error, stackTrace) {
+      debugPrint('UserService.getUserByUsername error: $error');
+      debugPrint('UserService.getUserByUsername stack: $stackTrace');
+      rethrow;
+    }
+  }
+
   Future<void> updateUser(String uid, Map<String, dynamic> data) async {
     try {
       await _provider.updateUser(uid, data);

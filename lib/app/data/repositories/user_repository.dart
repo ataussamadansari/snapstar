@@ -21,6 +21,13 @@ class UserRepository {
     return UserModel.fromJson(data);
   }
 
+  /// FETCH PROFILE BY USERNAME
+  Future<UserModel?> fetchProfileByUsername(String username) async {
+    final data = await _service.getUserByUsername(username);
+    if (data == null) return null;
+    return UserModel.fromJson(data);
+  }
+
   /// UPDATE PROFILE
   Future<void> updateProfile(String uid, Map<String, dynamic> data) async {
     await _service.updateUser(uid, data);

@@ -1,6 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../core/utils/image_cache_manager.dart';
+
 class AppCachedImage extends StatelessWidget {
   const AppCachedImage({
     super.key,
@@ -23,13 +25,14 @@ class AppCachedImage extends StatelessWidget {
   Widget build(BuildContext context) {
     return CachedNetworkImage(
       imageUrl: imageUrl,
+      cacheManager: AppImageCacheManager.instance,
       fit: fit,
       width: width,
       height: height,
       placeholder: (context, url) =>
           placeholder ??
           Container(
-            color: Colors.grey.shade200,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
             alignment: Alignment.center,
             child: const SizedBox(
               width: 28,
@@ -40,11 +43,11 @@ class AppCachedImage extends StatelessWidget {
       errorWidget: (context, url, error) =>
           errorWidget ??
           Container(
-            color: Colors.grey.shade200,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
             alignment: Alignment.center,
-            child: const Icon(
+            child: Icon(
               Icons.broken_image_outlined,
-              color: Colors.grey,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
             ),
           ),
     );

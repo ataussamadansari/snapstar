@@ -66,14 +66,11 @@ class ChatRepository {
     return _client
         .from('messages')
         .stream(primaryKey: ['id'])
+        .eq('conversation_id', conversationId)
         .order('created_at', ascending: true)
         .map(
           (data) => data
-              .where(
-                (json) =>
-                    json['conversation_id'] == conversationId &&
-                    json['is_deleted'] != true,
-              )
+              .where((json) => json['is_deleted'] != true)
               .map((json) => MessageModel.fromJson(json))
               .toList(),
         );

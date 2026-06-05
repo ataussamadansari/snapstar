@@ -14,6 +14,10 @@ class AutoPlayVideo extends StatefulWidget {
   final bool enforceSinglePlayback;
   final bool keepAlive;
 
+  /// Watch time callback — jab video deactivate ho (page change/navigate away)
+  /// [watchedSeconds] aur [totalSeconds] milte hain
+  final void Function(double watchedSeconds, double totalSeconds)? onWatchTime;
+
   const AutoPlayVideo({
     super.key,
     required this.videoUrl,
@@ -25,6 +29,7 @@ class AutoPlayVideo extends StatefulWidget {
     this.respectVisibility = true,
     this.enforceSinglePlayback = false,
     this.keepAlive = true,
+    this.onWatchTime,
   });
 
   static void setActiveSinglePlaybackVideo(
@@ -53,6 +58,10 @@ class _AutoPlayVideoState extends State<AutoPlayVideo>
   bool _hasError = false;
   bool _isVisibleEnough = false;
   int _controllerVersion = 0;
+
+  // Watch time tracking
+  DateTime? _playStartTime;
+  double _totalWatchedSeconds = 0.0;
 
   @override
   bool get wantKeepAlive => widget.keepAlive;
@@ -143,6 +152,8 @@ class _AutoPlayVideoState extends State<AutoPlayVideo>
     }
 
     if (oldWidget.isActive && !widget.isActive && widget.resetOnDeactivate) {
+      // Page change — watch time report karo phir pause karo
+      _reportWatchTime();
       _controller?.pause();
       _controller?.seekTo(Duration.zero);
     }
@@ -157,6 +168,8 @@ class _AutoPlayVideoState extends State<AutoPlayVideo>
   @override
   void dispose() {
     _controllerVersion++;
+    // Widget destroy hone se pehle watch time report karo
+    _reportWatchTime();
     if (widget.enforceSinglePlayback) {
       _singlePlaybackControllers.remove(widget.videoId);
       if (_singlePlaybackActiveId == widget.videoId) {
@@ -238,11 +251,38 @@ class _AutoPlayVideoState extends State<AutoPlayVideo>
 
     if (shouldPlay) {
       if (!_controller!.value.isPlaying) {
+        // Video play shuru ho rahi hai — start time note karo
+        _playStartTime = DateTime.now();
         _controller!.play();
       }
     } else if (_controller!.value.isPlaying) {
+      // Video ruk rahi hai — watch time accumulate karo
+      _accumulateWatchTime();
       _controller!.pause();
     }
+  }
+
+  void _accumulateWatchTime() {
+    if (_playStartTime == null) return;
+    final elapsed = DateTime.now().difference(_playStartTime!).inMilliseconds / 1000.0;
+    if (elapsed > 0) {
+      _totalWatchedSeconds += elapsed;
+    }
+    _playStartTime = null;
+  }
+
+  void _reportWatchTime() {
+    if (widget.onWatchTime == null) return;
+    // Agar abhi bhi play ho raha hai to final chunk accumulate karo
+    if (_controller?.value.isPlaying == true) {
+      _accumulateWatchTime();
+    }
+    final total = _controller?.value.duration.inSeconds.toDouble() ?? 0.0;
+    if (_totalWatchedSeconds > 0 && total > 0) {
+      widget.onWatchTime!(_totalWatchedSeconds, total);
+    }
+    // Reset
+    _totalWatchedSeconds = 0.0;
   }
 
   static void setSinglePlaybackActiveVideo(

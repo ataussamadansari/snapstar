@@ -362,7 +362,7 @@ class FcmService extends GetxService {
 
   void _refreshNotificationBadge() {
     if (Get.isRegistered<NotificationBadgeController>()) {
-      Get.find<NotificationBadgeController>().refreshUnreadCount();
+      Get.find<NotificationBadgeController>().refreshUnreadCount(force: true);
     }
   }
 

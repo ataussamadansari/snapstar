@@ -29,11 +29,11 @@ class ChatListScreen extends GetView<ChatListController> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.error_outline, size: 48, color: Colors.grey[400]),
+                Icon(Icons.error_outline, size: 48, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
                 const SizedBox(height: 16),
                 Text(
                   controller.errorMessage.value!,
-                  style: TextStyle(color: Colors.grey[600]),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55)),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
@@ -53,21 +53,21 @@ class ChatListScreen extends GetView<ChatListController> {
                 Icon(
                   Icons.chat_bubble_outline,
                   size: 64,
-                  color: Colors.grey[300],
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.25),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   'No conversations yet',
                   style: TextStyle(
                     fontSize: 18,
-                    color: Colors.grey[600],
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Start chatting with your friends',
-                  style: TextStyle(color: Colors.grey[500]),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45)),
                 ),
               ],
             ),
@@ -160,8 +160,8 @@ class _ConversationTile extends StatelessWidget {
           AppAvatar(
             radius: 28,
             avatarUrl: otherUser?.avatarUrl,
-            backgroundColor: Colors.grey[200],
-            iconColor: Colors.grey[600],
+            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+            iconColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
           ),
           if (hasUnread)
             Positioned(
@@ -170,8 +170,8 @@ class _ConversationTile extends StatelessWidget {
               child: Container(
                 width: 12,
                 height: 12,
-                decoration: const BoxDecoration(
-                  color: Colors.blue,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -197,7 +197,7 @@ class _ConversationTile extends StatelessWidget {
               child: Icon(
                 Icons.notifications_off,
                 size: 16,
-                color: Colors.grey[600],
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
               ),
             ),
         ],
@@ -207,7 +207,9 @@ class _ConversationTile extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          color: hasUnread ? Colors.black87 : Colors.grey[600],
+          color: hasUnread
+              ? Theme.of(context).colorScheme.onSurface
+              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
           fontWeight: hasUnread ? FontWeight.w500 : FontWeight.normal,
         ),
       ),
@@ -221,7 +223,9 @@ class _ConversationTile extends StatelessWidget {
               conversation.lastMessageAt?.timeAgo ?? '',
               style: TextStyle(
                 fontSize: 12,
-                color: hasUnread ? Colors.blue : Colors.grey[600],
+                color: hasUnread
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
                 fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
@@ -229,8 +233,8 @@ class _ConversationTile extends StatelessWidget {
               const SizedBox(height: 4),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: const BoxDecoration(
-                  color: Colors.blue,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
                   shape: BoxShape.circle,
                 ),
                 constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
@@ -239,8 +243,8 @@ class _ConversationTile extends StatelessWidget {
                     conversation.unreadCount > 99
                         ? '99+'
                         : conversation.unreadCount.toString(),
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimary,
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
                     ),

@@ -94,10 +94,7 @@ class PostProvider {
       final myId = _client.auth.currentUser?.id;
       final rpc = await _client.rpc(
         'get_explore_feed',
-        params: {
-          'p_user_id': myId,
-          'p_limit': limit + offset,
-        },
+        params: {'p_user_id': myId, 'p_limit': limit + offset},
       );
 
       final rows = List<Map<String, dynamic>>.from(rpc);
@@ -162,23 +159,31 @@ class PostProvider {
       );
 
       final rows = List<Map<String, dynamic>>.from(rpc);
+
+      // Duplicate IDs remove karo — RPC kabhi kabhi same row return kar sakta hai
+      final seen = <String>{};
+      final unique = rows.where((r) {
+        final id = r['id']?.toString() ?? '';
+        return id.isNotEmpty && seen.add(id);
+      }).toList();
+
       DateTime? nextCreatedAt;
       String? nextId;
       double? nextScore;
-      if (rows.isNotEmpty) {
-        final last = rows.last;
+      if (unique.isNotEmpty) {
+        final last = unique.last;
         nextCreatedAt = DateTime.tryParse(last['created_at']?.toString() ?? '');
         nextId = last['id']?.toString();
         nextScore = (last['rank_score'] as num?)?.toDouble();
       }
 
       return CursorPage<Map<String, dynamic>>(
-        items: rows,
+        items: unique,
         nextCursorCreatedAt: nextCreatedAt?.toUtc(),
         nextCursorId: nextId,
         nextCursorScore: nextScore,
         hasMore:
-            rows.length >= limit && nextCreatedAt != null && nextId != null,
+            unique.length >= limit && nextCreatedAt != null && nextId != null,
       );
     } catch (_) {
       final feedAuthorIds = await _buildFeedAuthorIds();
@@ -203,7 +208,15 @@ class PostProvider {
           .limit(limit);
 
       final rows = List<Map<String, dynamic>>.from(res);
-      return _toCursorPage(rows, limit);
+
+      // Fallback mein bhi deduplicate karo
+      final seen = <String>{};
+      final unique = rows.where((r) {
+        final id = r['id']?.toString() ?? '';
+        return id.isNotEmpty && seen.add(id);
+      }).toList();
+
+      return _toCursorPage(unique, limit);
     }
   }
 
@@ -232,12 +245,11 @@ class PostProvider {
 
   Future<int> fetchUserPostsCount(String userId) async {
     final res = await _client
-        .from('posts')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('is_deleted', false);
-
-    return List<dynamic>.from(res).length;
+        .from('users')
+        .select('posts_count')
+        .eq('id', userId)
+        .maybeSingle();
+    return (res?['posts_count'] as num?)?.toInt() ?? 0;
   }
 
   Future<List<Map<String, dynamic>>> fetchVideoPosts({
@@ -275,23 +287,24 @@ class PostProvider {
       );
 
       final rows = List<Map<String, dynamic>>.from(rpc);
+      final unique = _deduplicateRows(rows);
       DateTime? nextCreatedAt;
       String? nextId;
       double? nextScore;
-      if (rows.isNotEmpty) {
-        final last = rows.last;
+      if (unique.isNotEmpty) {
+        final last = unique.last;
         nextCreatedAt = DateTime.tryParse(last['created_at']?.toString() ?? '');
         nextId = last['id']?.toString();
         nextScore = (last['rank_score'] as num?)?.toDouble();
       }
 
       return CursorPage<Map<String, dynamic>>(
-        items: rows,
+        items: unique,
         nextCursorCreatedAt: nextCreatedAt?.toUtc(),
         nextCursorId: nextId,
         nextCursorScore: nextScore,
         hasMore:
-            rows.length >= limit && nextCreatedAt != null && nextId != null,
+            unique.length >= limit && nextCreatedAt != null && nextId != null,
       );
     } catch (_) {
       var query = _client
@@ -314,7 +327,7 @@ class PostProvider {
           .limit(limit);
 
       final rows = List<Map<String, dynamic>>.from(res);
-      return _toCursorPage(rows, limit);
+      return _toCursorPage(_deduplicateRows(rows), limit);
     }
   }
 
@@ -420,6 +433,19 @@ class PostProvider {
     );
   }
 
+  List<Map<String, dynamic>> _deduplicateRows(
+    Iterable<Map<String, dynamic>> rows,
+  ) {
+    final byId = <String, Map<String, dynamic>>{};
+    for (final row in rows) {
+      final id = row['id']?.toString();
+      if (id != null && id.isNotEmpty) {
+        byId[id] = row;
+      }
+    }
+    return byId.values.toList();
+  }
+
   Future<Map<String, dynamic>?> fetchPostById(String postId) async {
     final res = await _client
         .from('posts')
@@ -448,16 +474,30 @@ class PostProvider {
     return (res['share_count'] as num?)?.toInt() ?? 0;
   }
 
-  Future<void> incrementShareCount(String postId) async {
-    final current = await fetchShareCount(postId);
+  Future<bool> incrementShareCount(String postId) async {
+    final result = await _client.rpc(
+      'record_post_share',
+      params: {'p_post_id': postId},
+    );
+    return result == true;
+  }
 
-    await _client
-        .from('posts')
-        .update({
-          'share_count': current + 1,
-          'updated_at': DateTime.now().toIso8601String(),
-        })
-        .eq('id', postId);
+  Future<bool> recordWatchEvent({
+    required String postId,
+    required String sessionId,
+    required double watchedSeconds,
+    required double totalSeconds,
+  }) async {
+    final result = await _client.rpc(
+      'record_post_watch_event',
+      params: {
+        'p_post_id': postId,
+        'p_session_id': sessionId,
+        'p_watched_seconds': watchedSeconds,
+        'p_total_seconds': totalSeconds,
+      },
+    );
+    return result == true;
   }
 
   Future<String> uploadMedia({
@@ -470,7 +510,18 @@ class PostProvider {
 
     final path = '$userId/${type.name}/$fileName';
 
-    await _client.storage.from('posts').upload(path, file);
+    // cacheControl: '31536000' = 1 saal — static media kabhi change nahi hoti
+    // Supabase CDN is value ko use karega — baar baar origin se fetch nahi karega
+    await _client.storage
+        .from('posts')
+        .upload(
+          path,
+          file,
+          fileOptions: const FileOptions(
+            cacheControl: '31536000',
+            upsert: false,
+          ),
+        );
 
     return _client.storage.from('posts').getPublicUrl(path);
   }

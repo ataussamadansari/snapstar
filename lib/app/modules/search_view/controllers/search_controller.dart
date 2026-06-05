@@ -38,6 +38,8 @@ class SearchsController extends GetxController {
   Worker? _debounceWorker;
   VoidCallback? _unsubscribeRelationChanges;
   int _searchRunId = 0;
+  final Map<String, _SearchCacheEntry> _searchCache = {};
+  final Map<String, Future<_SearchResult>> _searchInFlight = {};
 
   bool get hasQuery => query.value.trim().isNotEmpty;
 
@@ -135,33 +137,15 @@ class SearchsController extends GetxController {
       isSearching.value = true;
       errorMessage.value = null;
 
-      final results = await Future.wait([
-        _userRepo.searchUsers(
-          query: searchQuery,
-          limit: 20,
-          offset: 0,
-          excludeUserId: _authRepo.currentUserId,
-        ),
-        _postRepo.searchPosts(
-          query: searchQuery,
-          limit: 30,
-          offset: 0,
-        ),
-        _postRepo.searchHashtags(
-          query: searchQuery,
-          limit: 12,
-        ),
-      ]);
+      final result = await _getSearchResult(searchQuery);
 
       if (runId != _searchRunId) {
         return;
       }
 
-      userResults.assignAll(results[0] as List<UserModel>);
-      postResults.assignAll(results[1] as List<PostModel>);
-      hashtagResults.assignAll(
-        List<Map<String, dynamic>>.from(results[2] as List<Map<String, dynamic>>),
-      );
+      userResults.assignAll(result.users);
+      postResults.assignAll(result.posts);
+      hashtagResults.assignAll(result.hashtags);
     } catch (error, stackTrace) {
       if (runId != _searchRunId) {
         return;
@@ -179,6 +163,53 @@ class SearchsController extends GetxController {
         isSearching.value = false;
       }
     }
+  }
+
+  Future<_SearchResult> _getSearchResult(String rawQuery) {
+    final key = rawQuery.toLowerCase();
+    final cached = _searchCache[key];
+    if (cached != null && DateTime.now().isBefore(cached.expiresAt)) {
+      return Future.value(cached.result);
+    }
+
+    final existing = _searchInFlight[key];
+    if (existing != null) {
+      return existing;
+    }
+
+    final request = Future.wait([
+      _userRepo.searchUsers(
+        query: rawQuery,
+        limit: 20,
+        offset: 0,
+        excludeUserId: _authRepo.currentUserId,
+      ),
+      _postRepo.searchPosts(
+        query: rawQuery,
+        limit: 30,
+        offset: 0,
+      ),
+      _postRepo.searchHashtags(
+        query: rawQuery,
+        limit: 12,
+      ),
+    ]).then((results) {
+      final result = _SearchResult(
+        users: results[0] as List<UserModel>,
+        posts: results[1] as List<PostModel>,
+        hashtags: List<Map<String, dynamic>>.from(
+          results[2] as List<Map<String, dynamic>>,
+        ),
+      );
+      _searchCache[key] = _SearchCacheEntry(
+        result: result,
+        expiresAt: DateTime.now().add(const Duration(minutes: 10)),
+      );
+      return result;
+    });
+
+    _searchInFlight[key] = request;
+    return request.whenComplete(() => _searchInFlight.remove(key));
   }
 
   void _subscribeToRelationChanges() {
@@ -214,5 +245,27 @@ class SearchsController extends GetxController {
     queryCtrl.dispose();
     super.onClose();
   }
+}
+
+class _SearchResult {
+  const _SearchResult({
+    required this.users,
+    required this.posts,
+    required this.hashtags,
+  });
+
+  final List<UserModel> users;
+  final List<PostModel> posts;
+  final List<Map<String, dynamic>> hashtags;
+}
+
+class _SearchCacheEntry {
+  const _SearchCacheEntry({
+    required this.result,
+    required this.expiresAt,
+  });
+
+  final _SearchResult result;
+  final DateTime expiresAt;
 }
 

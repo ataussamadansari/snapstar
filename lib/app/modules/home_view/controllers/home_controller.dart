@@ -42,6 +42,8 @@ class HomeController extends GetxController {
   String? _feedCursorId;
   double? _feedCursorScore;
 
+  int _feedRequestGeneration = 0;
+
   VoidCallback? _unsubscribePostChanges;
   VoidCallback? _unsubscribeRelationChanges;
 
@@ -51,7 +53,28 @@ class HomeController extends GetxController {
     _subscribeToPostChanges();
     _subscribeToRelationChanges();
     _hydrateFromCache();
-    refreshAll();
+    _fetchIfStale();
+  }
+
+  /// Cache valid hai to API skip karo, warna fresh data lo
+  Future<void> _fetchIfStale() async {
+    final userId = authRepository.currentUserId;
+    if (userId == null) {
+      await refreshAll();
+      return;
+    }
+
+    final feedCache = await cacheService.getJson('home_feed_$userId');
+    final profileCache = await cacheService.getJson('home_profile_$userId');
+
+    // Dono cache valid hain — sirf stories refresh karo (lightweight)
+    if (feedCache != null && profileCache != null) {
+      await storyController.fetchStories();
+      return;
+    }
+
+    // Cache miss — full refresh
+    await refreshAll();
   }
 
   Future<void> refreshAll() async {
@@ -73,10 +96,26 @@ class HomeController extends GetxController {
       return;
     }
 
+    // Cache se pehle dikhao
+    final cached = await cacheService.getJson('home_profile_$userId');
+    if (cached != null) {
+      final avatar = cached['avatar_url']?.toString().trim();
+      myAvatarUrl.value = (avatar != null && avatar.isNotEmpty) ? avatar : null;
+    }
+
     try {
       final profile = await userRepo.fetchProfile(userId);
       final avatar = profile?.avatarUrl?.trim();
       myAvatarUrl.value = (avatar != null && avatar.isNotEmpty) ? avatar : null;
+
+      // Cache mein save karo
+      if (profile != null) {
+        await cacheService.putJson(
+          'home_profile_$userId',
+          {'avatar_url': profile.avatarUrl ?? ''},
+          ttl: const Duration(minutes: 30),
+        );
+      }
     } catch (error, stackTrace) {
       debugPrint('HomeController._loadMyProfile error: $error');
       debugPrint('HomeController._loadMyProfile stack: $stackTrace');
@@ -109,6 +148,7 @@ class HomeController extends GetxController {
 
   Future<void> loadPosts({bool refresh = false}) async {
     if (refresh) {
+      _feedRequestGeneration++;
       _feedCursorCreatedAt = null;
       _feedCursorId = null;
       _feedCursorScore = null;
@@ -116,13 +156,13 @@ class HomeController extends GetxController {
     }
 
     if (!hasMorePosts.value ||
-        isLoadingPosts.value ||
-        isLoadingMorePosts.value) {
+        (!refresh && (isLoadingPosts.value || isLoadingMorePosts.value))) {
       return;
     }
 
     final bool isFirstPage =
         _feedCursorCreatedAt == null || _feedCursorId == null;
+    final requestGeneration = _feedRequestGeneration;
 
     if (isFirstPage) {
       isLoadingPosts.value = true;
@@ -137,17 +177,18 @@ class HomeController extends GetxController {
         cursorId: _feedCursorId,
         cursorScore: _feedCursorScore,
       );
-      final fetched = page.items;
-      final prepared = fetched;
-
-      if (isFirstPage) {
-        posts.assignAll(prepared);
-      } else {
-        final existingIds = posts.map((post) => post.id).toSet();
-        final unique = prepared.where((post) => !existingIds.contains(post.id));
-        posts.addAll(unique);
+      if (requestGeneration != _feedRequestGeneration) {
+        return;
       }
 
+      // Session-level deduplication — pehle se dekhi hui posts filter karo
+      if (isFirstPage) {
+        posts.assignAll(_deduplicatePosts(page.items));
+      } else {
+        posts.assignAll(_deduplicatePosts([...posts, ...page.items]));
+      }
+
+      // Agar saari posts duplicate nikli to hasMore false karo
       hasMorePosts.value = page.hasMore;
       _feedCursorCreatedAt = page.nextCursorCreatedAt;
       _feedCursorId = page.nextCursorId;
@@ -157,10 +198,12 @@ class HomeController extends GetxController {
       debugPrint('HomeController.loadPosts error: $error');
       debugPrint('HomeController.loadPosts stack: $stackTrace');
     } finally {
-      if (isFirstPage) {
-        isLoadingPosts.value = false;
-      } else {
-        isLoadingMorePosts.value = false;
+      if (requestGeneration == _feedRequestGeneration) {
+        if (isFirstPage) {
+          isLoadingPosts.value = false;
+        } else {
+          isLoadingMorePosts.value = false;
+        }
       }
     }
   }
@@ -183,7 +226,7 @@ class HomeController extends GetxController {
           .map((row) => PostModel.fromJson(Map<String, dynamic>.from(row)))
           .toList();
       if (restored.isNotEmpty && posts.isEmpty) {
-        posts.assignAll(restored);
+        posts.assignAll(_deduplicatePosts(restored));
       }
     } catch (error, stackTrace) {
       debugPrint('HomeController._hydrateFromCache error: $error');
@@ -239,8 +282,16 @@ class HomeController extends GetxController {
     await cacheService.putJson(
       'home_feed_$userId',
       payload,
-      ttl: const Duration(minutes: 3),
+      ttl: const Duration(minutes: 5),
     );
+  }
+
+  List<PostModel> _deduplicatePosts(Iterable<PostModel> source) {
+    final byId = <String, PostModel>{};
+    for (final post in source) {
+      byId[post.id] = post;
+    }
+    return byId.values.toList();
   }
 
   Future<void> loadMorePosts() {
@@ -264,19 +315,19 @@ class HomeController extends GetxController {
             if (updated.length > 80) {
               updated.removeRange(80, updated.length);
             }
-            posts.assignAll(updated);
+            posts.assignAll(_deduplicatePosts(updated));
             _persistFeedCache();
             return;
           case PostModelChangeType.update:
             if (index >= 0 && change.post != null) {
               current[index] = change.post!;
-              posts.assignAll(current);
+              posts.assignAll(_deduplicatePosts(current));
             }
             return;
           case PostModelChangeType.delete:
             if (index >= 0) {
               current.removeAt(index);
-              posts.assignAll(current);
+              posts.assignAll(_deduplicatePosts(current));
             }
             return;
         }

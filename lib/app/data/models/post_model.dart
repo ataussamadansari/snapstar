@@ -15,6 +15,7 @@ class PostModel {
   final int likeCount;
   final int commentCount;
   final int shareCount;
+  final int watchCount;
 
   final bool isDeleted;
   final String? location;
@@ -33,6 +34,7 @@ class PostModel {
     required this.likeCount,
     required this.commentCount,
     required this.shareCount,
+    this.watchCount = 0,
     required this.isDeleted,
     this.location,
     required this.createdAt,
@@ -53,6 +55,7 @@ class PostModel {
       likeCount: json['like_count'] ?? 0,
       commentCount: json['comment_count'] ?? 0,
       shareCount: json['share_count'] ?? 0,
+      watchCount: (json['watch_count'] as num?)?.toInt() ?? 0,
       isDeleted: json['is_deleted'] ?? false,
       location: json['location'],
       // createdAt: DateTime.parse(json['created_at']),

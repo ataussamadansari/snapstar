@@ -100,7 +100,8 @@ class NotificationProvider {
         items: rows,
         nextCursorCreatedAt: nextCreatedAt?.toUtc(),
         nextCursorId: nextId,
-        hasMore: rows.length >= limit && nextCreatedAt != null && nextId != null,
+        hasMore:
+            rows.length >= limit && nextCreatedAt != null && nextId != null,
       );
     } on PostgrestException catch (error) {
       if (_isMissingNotificationsTable(error)) {
@@ -122,10 +123,13 @@ class NotificationProvider {
     }
 
     try {
-      await _client.from('notifications').update({
-        'is_read': true,
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', notificationId);
+      await _client
+          .from('notifications')
+          .update({
+            'is_read': true,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', notificationId);
     } on PostgrestException catch (error) {
       if (_isMissingNotificationsTable(error)) {
         _isNotificationsSupported = false;
@@ -141,14 +145,11 @@ class NotificationProvider {
     }
 
     try {
-      final response = await _client
-          .from('notifications')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('is_read', false)
-          .eq('is_deleted', false);
-
-      return (response as List).length;
+      if (_client.auth.currentUser?.id != userId) {
+        return 0;
+      }
+      final response = await _client.rpc('get_unread_notification_count');
+      return (response as num?)?.toInt() ?? 0;
     } on PostgrestException catch (error) {
       if (_isMissingNotificationsTable(error)) {
         _isNotificationsSupported = false;

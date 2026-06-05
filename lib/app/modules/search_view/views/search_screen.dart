@@ -262,8 +262,8 @@ class _SuggestedUserCard extends StatelessWidget {
             AppAvatar(
               radius: 30,
               avatarUrl: avatarUrl,
-              backgroundColor: Colors.grey.shade200,
-              iconColor: Colors.grey.shade600,
+              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              iconColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
               iconSize: 28,
             ),
             const SizedBox(height: 12),
@@ -285,7 +285,7 @@ class _SuggestedUserCard extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey.shade600,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
               ),
             ),
             const Spacer(),
@@ -326,8 +326,8 @@ class _UserListItem extends StatelessWidget {
             AppAvatar(
               radius: 22,
               avatarUrl: avatarUrl,
-              backgroundColor: Colors.grey.shade200,
-              iconColor: Colors.grey.shade600,
+              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              iconColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -348,7 +348,7 @@ class _UserListItem extends StatelessWidget {
                     '@${user.username}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: Colors.grey.shade600),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55)),
                   ),
                 ],
               ),
@@ -397,13 +397,13 @@ class _PostListItem extends StatelessWidget {
               child: Container(
                 width: 64,
                 height: 64,
-                color: Colors.grey.shade200,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 child: previewUrl == null
                     ? Icon(
                         post.mediaType == MediaType.video
                             ? Icons.play_circle_outline
                             : Icons.image_outlined,
-                        color: Colors.grey.shade600,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
                       )
                     : AppCachedImage(imageUrl: previewUrl, fit: BoxFit.cover),
               ),
@@ -427,7 +427,7 @@ class _PostListItem extends StatelessWidget {
                     subtitle,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: Colors.grey.shade700),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
                   ),
                 ],
               ),
@@ -436,7 +436,7 @@ class _PostListItem extends StatelessWidget {
               post.mediaType == MediaType.video
                   ? Icons.play_circle_fill_rounded
                   : Icons.photo,
-              color: Colors.grey.shade600,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
             ),
           ],
         ),
@@ -470,20 +470,20 @@ class _SuggestedPostTile extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Container(color: Colors.grey.shade200),
+          Container(color: Theme.of(context).colorScheme.surfaceContainerHighest),
           if (previewUrl != null)
             AppCachedImage(
               imageUrl: previewUrl,
               fit: BoxFit.cover,
               errorWidget: Icon(
                 isVideo ? Icons.play_circle_outline : Icons.image_outlined,
-                color: Colors.grey.shade600,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
               ),
             )
           else
             Icon(
               isVideo ? Icons.play_circle_outline : Icons.image_outlined,
-              color: Colors.grey.shade600,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
             ),
           if (isVideo)
             const Positioned(
@@ -527,11 +527,11 @@ class _HashtagListItem extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 20,
-              backgroundColor: Colors.grey.shade200,
+              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
               child: Text(
                 '#',
                 style: TextStyle(
-                  color: Colors.grey.shade700,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -551,7 +551,7 @@ class _HashtagListItem extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     '$postCount posts • $usageCount uses',
-                    style: TextStyle(color: Colors.grey.shade600),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55)),
                   ),
                 ],
               ),
@@ -676,7 +676,7 @@ class _StateMessage extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 32, color: Colors.grey.shade500),
+            Icon(icon, size: 32, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
             const SizedBox(height: 10),
             Text(
               title,
@@ -688,7 +688,7 @@ class _StateMessage extends StatelessWidget {
               Text(
                 subtitle!,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey.shade600),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55)),
               ),
             ],
             if (buttonLabel != null && onPressed != null) ...[

@@ -20,4 +20,6 @@ abstract class Routes {
   static const settingsAppUpdate = '/settings/app-update';
   static const settingsAccessibility = '/settings/accessibility';
   static const settingsContentStyle = '/settings/content-style';
+  static const hashtagPosts = '/hashtag-posts';
+  static const postDetail = '/post-detail';
 }

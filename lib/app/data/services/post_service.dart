@@ -239,12 +239,32 @@ class PostService {
     }
   }
 
-  Future<void> incrementShareCount(String postId) async {
+  Future<bool> incrementShareCount(String postId) async {
     try {
-      await _provider.incrementShareCount(postId);
+      return await _provider.incrementShareCount(postId);
     } catch (error, stackTrace) {
       debugPrint('PostService.incrementShareCount error: $error');
       debugPrint('PostService.incrementShareCount stack: $stackTrace');
+      rethrow;
+    }
+  }
+
+  Future<bool> recordWatchEvent({
+    required String postId,
+    required String sessionId,
+    required double watchedSeconds,
+    required double totalSeconds,
+  }) async {
+    try {
+      return await _provider.recordWatchEvent(
+        postId: postId,
+        sessionId: sessionId,
+        watchedSeconds: watchedSeconds,
+        totalSeconds: totalSeconds,
+      );
+    } catch (error, stackTrace) {
+      debugPrint('PostService.recordWatchEvent error: $error');
+      debugPrint('PostService.recordWatchEvent stack: $stackTrace');
       rethrow;
     }
   }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
 import '../core/utils/auth_helper.dart';
@@ -24,7 +23,7 @@ class AuthMiddleware extends GetMiddleware {
           message: 'Login with Google to continue',
         );
       });
-      return const RouteSettings(name: Routes.login);
+      return null; // stay on current route, modal handles the UX
     }
 
     return null;

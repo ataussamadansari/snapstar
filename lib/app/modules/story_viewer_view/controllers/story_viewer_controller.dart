@@ -5,10 +5,12 @@ import 'package:get/get.dart';
 
 import '../../../core/utils/auth_helper.dart';
 import '../../../data/controllers/story_controller.dart';
+import '../../../data/controllers/story_like_controller.dart';
 import '../../../data/models/story_model.dart';
 
 class StoryViewerController extends GetxController {
   final StoryController storyController = Get.find();
+  final StoryLikeController storyLikeController = Get.find();
 
   final RxList<StoryModel> userStories = <StoryModel>[].obs;
 
@@ -61,6 +63,34 @@ class StoryViewerController extends GetxController {
     return story.userId == AuthHelper.currentUserId;
   }
 
+  bool get isMyStory => currentStory?.userId == AuthHelper.currentUserId;
+
+  // ─── Like helpers ──────────────────────────────────────────────────────────
+
+  bool get isCurrentLiked {
+    final id = currentStory?.id;
+    if (id == null) return false;
+    return storyLikeController.isLiked(id);
+  }
+
+  int get currentLikeCount {
+    final id = currentStory?.id;
+    if (id == null) return 0;
+    return storyLikeController.likeCount(id);
+  }
+
+  int get currentViewCount {
+    final id = currentStory?.id;
+    if (id == null) return 0;
+    return storyLikeController.viewCount(id);
+  }
+
+  Future<void> toggleLike() async {
+    final id = currentStory?.id;
+    if (id == null) return;
+    await storyLikeController.toggleLike(id);
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -82,6 +112,15 @@ class StoryViewerController extends GetxController {
 
     if (currentIndex.value < 0) {
       currentIndex.value = 0;
+    }
+
+    // Har story ke liye like/view state initialize karo
+    for (final story in userStories) {
+      storyLikeController.initializeStory(
+        story.id,
+        dbLikeCount: story.likeCount,
+        dbViewCount: story.viewCount,
+      );
     }
 
     // Mark as viewed first
